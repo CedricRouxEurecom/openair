@@ -1143,6 +1143,7 @@ set(L2_NR_SRC
   ${NR_RRC_DIR}/rrc_gNB_du.c
   ${NR_RRC_DIR}/rrc_gNB_mobility.c
   ${NR_RRC_DIR}/rrc_gNB_NRPPA.c
+  ${NR_RRC_DIR}/rrc_gNB_nrdc.c
   )
 
 set(L2_SRC_UE

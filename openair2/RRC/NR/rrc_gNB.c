@@ -85,6 +85,7 @@
 #include "openair3/NRPPA/nrppa_gNB_location_information_transfer.h"
 #include "openair3/NRPPA/nrppa_gNB_measurement_information_transfer.h"
 #include "rrc_gNB_measurements.h"
+#include "rrc_gNB_nrdc.h"
 
 #ifdef E2_AGENT
 #include "openair2/E2AP/RAN_FUNCTION/O-RAN/ran_func_rc_extern.h"
@@ -305,12 +306,12 @@ static void rrc_deliver_dl_rrc_message(void *deliver_pdu_data, ue_id_t ue_id, in
   data->rrc->mac_rrc.dl_rrc_message_transfer(data->assoc_id, data->dl_rrc);
 }
 
-static void nr_rrc_transfer_protected_rrc_message(const gNB_RRC_INST *rrc,
-                                                  const gNB_RRC_UE_t *ue_p,
-                                                  uint8_t srb_id,
-                                                  const uint32_t message_id,
-                                                  const uint8_t *buffer,
-                                                  int size)
+void nr_rrc_transfer_protected_rrc_message(const gNB_RRC_INST *rrc,
+                                           const gNB_RRC_UE_t *ue_p,
+                                           uint8_t srb_id,
+                                           const uint32_t message_id,
+                                           const uint8_t *buffer,
+                                           int size)
 {
   DevAssert(size > 0);
   f1_ue_data_t ue_data = cu_get_f1_ue_data(ue_p->rrc_ue_id);
@@ -2177,6 +2178,8 @@ static void handle_rrcReconfigurationComplete(gNB_RRC_INST *rrc, gNB_RRC_UE_t *U
   UE->ue_reconfiguration_counter++;
   UE->ongoing_reconfiguration = false;
 
+  bool start_nrdc = false;
+
   switch (UE->xids[xid]) {
     case RRC_PDUSESSION_RELEASE: {
       rrc_gNB_send_NGAP_PDUSESSION_RELEASE_RESPONSE(rrc, UE, xid);
@@ -2196,6 +2199,8 @@ static void handle_rrcReconfigurationComplete(gNB_RRC_INST *rrc, gNB_RRC_UE_t *U
               "UE %d: RRC Reconfiguration Complete for PDU session establishment, but no PDU sessions were setup\n",
               UE->rrc_ue_id);
       reset_delayed_action(&UE->delayed_action);
+      /* once a PDU session is established, we can start NR-DC */
+      start_nrdc = true;
       break;
     case RRC_PDUSESSION_MODIFY:
       rrc_gNB_send_NGAP_PDUSESSION_MODIFY_RESP(rrc, UE, xid);
@@ -2238,6 +2243,9 @@ static void handle_rrcReconfigurationComplete(gNB_RRC_INST *rrc, gNB_RRC_UE_t *U
   };
   rrc->mac_rrc.ue_context_modification_request(ue_data.du_assoc_id, &req);
   /* nothing to be freed */
+
+  if (start_nrdc)
+    rrc_gnb_nrdc_start(rrc, UE);
 }
 
 static void rrc_gNB_generate_UECapabilityEnquiry(gNB_RRC_INST *rrc, gNB_RRC_UE_t *ue)
