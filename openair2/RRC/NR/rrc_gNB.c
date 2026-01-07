@@ -3892,6 +3892,10 @@ void *rrc_gnb_task(void *args_p)
         rrc_CU_process_positioning_measurement_failure(&F1AP_POSITIONING_MEASUREMENT_FAILURE(msg_p));
         break;
 
+      case NR_RRC_NRDC_TIMEOUT:
+        rrc_gnb_nrdc_timeout(RC.nrrrc[instance], &NR_RRC_NRDC_TIMEOUT(msg_p));
+        break;
+
       default:
         LOG_E(NR_RRC, "[gNB %ld] Received unexpected message %s\n", instance, msg_name_p);
         break;
