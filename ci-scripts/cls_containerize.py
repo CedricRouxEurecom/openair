@@ -53,7 +53,8 @@ def AnalyzeBuildLogs(image, lf):
 			# the OpenShift Cluster builder prepends image registry URL
 			lineHasCommit = re.search(r'COMMIT [a-zA-Z0-9\.:/\-]*' + image, str(line)) is not None
 			committed = committed or lineHasCommit
-			if re.search(r'error:|Errors|ERROR', line):
+			# ignore apt errors, if it installes, it's good
+			if re.search(r'error:|Errors|ERROR', line) and not re.search(r'update-alternatives: error: alternative', line):
 				errors.append(f"=> {line.strip()}")
 	status = (committed or tagged) and len(errors) == 0
 	logging.info(f"Analyzing {image}, file {lf}: {status=}, {len(errors)} errors")
