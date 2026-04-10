@@ -28,13 +28,14 @@ static NR_UE_info_t *nrdc_create_new_UE(gNB_MAC_INST *mac, nr_cell_sched_t *cell
   NR_COMMON_channels_t *cc = &cell->common_channels;
   const NR_ServingCellConfigCommon_t *scc = cc->ServingCellConfigCommon;
 
+  /* mimic NSA way to create a new UE (with adaptations) */
   NR_UE_NR_Capability_t *cap = get_ue_nr_cap_from_cg_config_info(cgci);
   int ssb_index = get_ssbidx_from_beam(cell, UE->UE_beam_index);
   NR_CellGroupConfig_t *cellGroupConfig = get_default_secondaryCellGroup(scc, cap, 1, 1, &cell->radio_config, cell, UE->uid, ssb_index);
 
   cellGroupConfig->spCellConfig->reconfigurationWithSync = get_reconfiguration_with_sync(UE->rnti, UE->uid, scc, mac->frame);
   UE->capability = cap;
-  UE->local_bwp_id = 1; // nrdc_get_default_secondaryCellGroup sets 1st active BWP as 1
+  UE->local_bwp_id = 1; // get_default_secondaryCellGroup sets 1st active BWP as 1
 
   // note: we don't pass the cellGroupConfig to add_new_nr_ue() because we need
   // the uid to create the CellGroupConfig (which is in the UE context created
@@ -81,6 +82,11 @@ void nrdc_ue_context_setup_request(const f1ap_ue_context_setup_req_t *req)
 
   if (req->drbs_len > 0)
     resp.drbs_len = handle_ue_context_drbs_setup(UE, req->drbs_len, req->drbs, &resp.drbs, new_CellGroup, &mac->rlc_config);
+
+  UE->reconfigCellGroup = new_CellGroup;
+  int ss_type =  NR_SearchSpace__searchSpaceType_PR_common;
+  NR_ServingCellConfigCommon_t *scc = cell->common_channels.ServingCellConfigCommon;
+  configure_UE_BWP(cell, scc, UE, true, ss_type, -1, -1);
 
   NR_SCHED_UNLOCK(&mac->sched_lock);
 
