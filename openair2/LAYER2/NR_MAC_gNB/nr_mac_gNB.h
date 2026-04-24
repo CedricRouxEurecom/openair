@@ -860,6 +860,8 @@ typedef struct NR_UE_info {
   // The below ID is the "true" (non-consecutive) BWP ID from the gNB's point of view
   NR_BWP_Id_t local_bwp_id;
   context_modification_info_t cm_info;
+  /* if nrdc_mode is true then the DU is an SCG DU */
+  bool nrdc_mode;
 } NR_UE_info_t;
 
 typedef struct {
