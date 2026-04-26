@@ -920,6 +920,16 @@ int phy_nr_slot_indication(nfapi_nr_slot_indication_scf_t *ind)
   ifi->NR_slot_indication(ind, &sched_response);
 
 #ifdef ENABLE_AERIAL
+    // The scheduler does not stamp the cell identity onto the requests it produces,
+    // so carry it over from the indication that triggered this slot. Once the MAC
+    // sets it in reset_sched_response(), these four assignments can simply go away
+    // and the senders keep reading it off the message.
+    const uint8_t PHY_id = ind->header.phy_id;
+    sched_response.DL_req.header.phy_id = PHY_id;
+    sched_response.UL_tti_req.header.phy_id = PHY_id;
+    sched_response.TX_req.header.phy_id = PHY_id;
+    sched_response.UL_dci_req.header.phy_id = PHY_id;
+
     bool send_slt_resp = false;
     if (sched_response.DL_req.dl_tti_request_body.nPDUs> 0) {
       oai_fapi_dl_tti_req(&sched_response.DL_req);
@@ -938,7 +948,7 @@ int phy_nr_slot_indication(nfapi_nr_slot_indication_scf_t *ind)
       send_slt_resp = true;
     }
     if (send_slt_resp) {
-      oai_fapi_send_end_request(ind->sfn, ind->slot);
+      oai_fapi_send_end_request(ind->sfn, ind->slot, PHY_id);
     }
 #else
   if (sched_response.DL_req.dl_tti_request_body.nPDUs > 0)
@@ -1417,6 +1427,9 @@ int nr_param_resp_cb(nfapi_vnf_config_t *config, int p5_idx, nfapi_nr_param_resp
   vnf_p7_info *p7_vnf = vnf->p7_vnfs;
   pnf_info *pnf = vnf->pnfs;
   phy_info *phy = pnf->phys;
+#ifdef ENABLE_AERIAL
+  phy->id = p5_idx;
+#endif
   nfapi_nr_config_request_scf_t *req = &RC.nrmac[0]->config[0]; // check
 #ifndef ENABLE_AERIAL
   struct sockaddr_in pnf_p7_sockaddr;
@@ -1847,7 +1860,7 @@ void configure_nr_nfapi_vnf(const char *vnf_addr, uint16_t vnf_p5_port, uint16_t
   nfapi_vnf_pnf_info_t *pnf = (nfapi_vnf_pnf_info_t *)malloc(sizeof(nfapi_vnf_pnf_info_t));
   NFAPI_TRACE(NFAPI_TRACE_INFO, "MALLOC nfapi_vnf_pnf_info_t for pnf_list pnf:%p\n", pnf);
   memset(pnf, 0, sizeof(nfapi_vnf_pnf_info_t));
-  pnf->p5_idx = 1;
+  pnf->p5_idx = 0;
   pnf->connected = 1;
   // Add needed parameters
 
