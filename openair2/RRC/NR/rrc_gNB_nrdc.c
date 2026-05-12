@@ -359,13 +359,41 @@ void rrc_gnb_nrdc_start(gNB_RRC_INST *rrc, gNB_RRC_UE_t *ue)
   if (ue->nrdc)
     return;
 
-  /* look for an NR-DC combination */
-  int mcg_band = 77;
-  int scg_band = 261;
-  uint64_t mcg_cell_id = 12345679;
-  uint64_t scg_cell_id = 12345678;
+  /* look for an NR-DC combination, configured and available */
+  nr_rrc_cell_container_t *ue_pcell = rrc_get_pcell_for_ue(rrc, ue);
+  if (ue_pcell == NULL) {
+    LOG_W(NR_RRC, "NR-DC: UE %d has no PCell, don't try to activate NR-DC\n", ue->rrc_ue_id);
+    return;
+  }
+
+  bool combination_found = false;
+  int mcg_band = 0;
+  int scg_band = 0;
+  uint64_t mcg_cell_id = 0;
+  uint64_t scg_cell_id = 0;
+
+  for (int i = 0; i < rrc->nrdc_config.combination_count; i++) {
+    nr_rrc_cell_container_t *mcg_cell = get_cell_by_cell_id(&rrc->cells, rrc->nrdc_config.combinations[i].mcg_cell_id);
+    nr_rrc_cell_container_t *scg_cell = get_cell_by_cell_id(&rrc->cells, rrc->nrdc_config.combinations[i].scg_cell_id);
+    /* MCG cell must be the one used by the UE */
+    if (mcg_cell == ue_pcell && scg_cell != NULL) {
+      mcg_band = mcg_cell->info.mode == NR_MODE_TDD ? mcg_cell->info.tdd.dlul.band : mcg_cell->info.fdd.dl.band;
+      scg_band = scg_cell->info.mode == NR_MODE_TDD ? scg_cell->info.tdd.dlul.band : scg_cell->info.fdd.dl.band;
+      mcg_cell_id = rrc->nrdc_config.combinations[i].mcg_cell_id;
+      scg_cell_id = rrc->nrdc_config.combinations[i].scg_cell_id;
+      combination_found = true;
+      break;
+    }
+  }
+
+  if (!combination_found) {
+    LOG_W(NR_RRC, "NR-DC: UE %d: no NR-DC combination found, NR-DC will not be activated\n", ue->rrc_ue_id);
+    return;
+  }
 
   /* a combination is found, start NR-DC, ask for UE capabilities */
+  LOG_I(NR_RRC, "NR-DC: UE %d: trying band combination MCG band %d and SCG band %d\n", ue->rrc_ue_id, mcg_band, scg_band);
+
   /* allocate the NR-DC state data in the UE */
   nrdc_ue_state_t *nrdc = calloc_or_fail(1, sizeof(*nrdc));
   ue->nrdc = nrdc;
