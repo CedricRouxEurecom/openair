@@ -598,120 +598,399 @@ static int nr_csi_rs_ri_estimation(const PHY_VARS_NR_UE *ue,
   }
 }
 
-static int nr_csi_rs_pmi_estimation(const PHY_VARS_NR_UE *ue,
-                                    const fapi_nr_dl_config_csirs_pdu_rel15_t *csirs_config_pdu,
-                                    const uint8_t N_ports,
-                                    const c16_t csi_rs_estimated_channel_freq[][N_ports][ue->frame_parms.ofdm_symbol_size],
-                                    const uint32_t interference_plus_noise_power,
-                                    const uint8_t rank_indicator,
-                                    const int16_t log2_re,
-                                    uint8_t *i2,
-                                    int32_t *precoded_sinr_dB)
+// Type1 Single Panel PMI indices (TS 38.214 Section 5.2.2.2.1).
+typedef struct {
+  uint8_t i_1_1; // first DFT beam index (4/8 ports; range depends on N1*O1)
+  uint8_t i_1_2; // second DFT beam index (8 ports only; range depends on N2*O2)
+  uint8_t i_1_3; // beam-pair / k1 selection (rank>=2 with 4/8 ports)
+  uint8_t i_2; // co-phasing index (rank 1: 0..3; rank>=2: 0..1)
+} csi_rs_pmi_t;
+
+// DFT codebook: v_l = [1, exp(j*pi*l/4)]^T, l in {0..7}. Q8 fixed-point.
+#define PMI_Q 256
+static const int16_t vl_r[8] = {256, 181, 0, -181, -256, -181, 0, 181};
+static const int16_t vl_i[8] = {0, 181, 256, 181, 0, -181, -256, -181};
+// Co-phasing phi_n = exp(j*pi*n/2): pure integer entries.
+static const int8_t phi_r[4] = {1, 0, -1, 0};
+static const int8_t phi_i[4] = {0, 1, 0, -1};
+
+// SISO case
+static void nr_csi_rs_pmi_1port(int nb_antennas_rx,
+                                int N_ports,
+                                int osz,
+                                const c16_t ch_freq[][N_ports][osz],
+                                const fapi_nr_dl_config_csirs_pdu_rel15_t *cfg,
+                                uint32_t noise,
+                                int32_t *precoded_sinr_dB)
 {
-  const NR_DL_FRAME_PARMS *frame_parms = &ue->frame_parms;
-  const uint32_t ipn = interference_plus_noise_power == 0 ? 1 : interference_plus_noise_power;
-  // i1 is a three-element vector in the form of [i11 i12 i13], when CodebookType is specified as 'Type1SinglePanel'.
-  // Note that i13 is not applicable when the number of transmission layers is one of {1, 5, 6, 7, 8}.
-  // i2, for 'Type1SinglePanel' codebook type, it is a scalar when PMIMode is specified as 'wideband', and when PMIMode
-  // is specified as 'subband' or when PRGSize, the length of the i2 vector equals to the number of subbands or PRGs.
-  // Note that when the number of CSI-RS ports is 2, the applicable codebook type is 'Type1SinglePanel'. In this case,
-  // the precoding matrix is obtained by a single index (i2 field here) based on TS 38.214 Table 5.2.2.2.1-1.
-  // The first column is applicable if the UE is reporting a Rank = 1, whereas the second column is applicable if the
-  // UE is reporting a Rank = 2.
-
-  if (N_ports == 1) {
-    // SISO case: SINR = E[|h|^2] / noise_power. No PMI to estimate.
-    int64_t signal_power = 0;
-    int count = 0;
-
-    for (int rb = csirs_config_pdu->start_rb; rb < (csirs_config_pdu->start_rb + csirs_config_pdu->nr_of_rbs); rb++) {
-      if (csirs_config_pdu->freq_density <= 1 && csirs_config_pdu->freq_density != (rb % 2)) {
-        continue;
-      }
-      uint16_t k = rb * NR_NB_SC_PER_RB;
-
-      const c16_t h = csi_rs_estimated_channel_freq[0][0][k];
+  int64_t signal_power = 0;
+  int num_h_vectors = 0;
+  for (int rb = cfg->start_rb; rb < cfg->start_rb + cfg->nr_of_rbs; rb++) {
+    if (cfg->freq_density <= 1 && cfg->freq_density != (rb % 2))
+      continue;
+    int k = rb * NR_NB_SC_PER_RB;
+    for (int ant_rx = 0; ant_rx < nb_antennas_rx; ant_rx++) {
+      c16_t h = ch_freq[ant_rx][0][k];
       signal_power += (int64_t)h.r * h.r + (int64_t)h.i * h.i;
-      count++;
     }
+    num_h_vectors++;
+  }
+  if (num_h_vectors == 0)
+    return;
 
-    if (count > 0) {
-      const int64_t avg_signal_power = signal_power / count;
-      // Non RF devices like ZMQ has virtually zero noise. So here we make noise as 1 to return maximum sinr.
-      const uint32_t sinr = avg_signal_power / ipn;
-      *precoded_sinr_dB = dB_fixed(sinr);
+  signal_power /= num_h_vectors;
+  *precoded_sinr_dB = dB_fixed(signal_power) - dB_fixed(noise);
+
+  LOG_D(NR_PHY,
+        "[nr_csi_rs_pmi_1port] signal_power = %li (%i dB), noise = %u (%i dB)\n  --> precoded_sinr_dB = %i dB\n",
+        signal_power,
+        (int)(10 * log10(signal_power)),
+        noise,
+        (int)(10 * log10(noise)),
+        *precoded_sinr_dB);
+}
+
+// Rank 1 or 2;  2 ports (TS 38.214 - Table 5.2.2.2.1-1)
+static void nr_csi_rs_pmi_2ports(int nb_antennas_rx,
+                                 int N_ports,
+                                 int osz,
+                                 const c16_t ch_freq[][N_ports][osz],
+                                 const fapi_nr_dl_config_csirs_pdu_rel15_t *cfg,
+                                 uint32_t noise,
+                                 uint8_t rank_indicator,
+                                 csi_rs_pmi_t *pmi,
+                                 int32_t *precoded_sinr_dB)
+{
+  if (rank_indicator > 1) {
+    LOG_W(NR_PHY, "PMI not implemented for 2 ports and rank %d\n", rank_indicator + 1);
+    return;
+  }
+  // R = sum H^H H, 2x2 Hermitian (only R[0][0], R[0][1], R[1][1] needed)
+  c64_t R[2][2] = {{{0}}};
+  int num_h_vectors = 0;
+  for (int rb = cfg->start_rb; rb < cfg->start_rb + cfg->nr_of_rbs; rb++) {
+    if (cfg->freq_density <= 1 && cfg->freq_density != (rb % 2))
+      continue;
+    int k = rb * NR_NB_SC_PER_RB;
+    for (int ant_rx = 0; ant_rx < nb_antennas_rx; ant_rx++) {
+      c16_t h0 = ch_freq[ant_rx][0][k], h1 = ch_freq[ant_rx][1][k];
+      R[0][0].r += (int64_t)h0.r * h0.r + (int64_t)h0.i * h0.i; // |h0|^2 (real)
+      R[1][1].r += (int64_t)h1.r * h1.r + (int64_t)h1.i * h1.i; // |h1|^2 (real)
+      R[0][1].r += (int64_t)h0.r * h1.r + (int64_t)h0.i * h1.i; // Re(conj(h0)*h1)
+      R[0][1].i += (int64_t)h0.r * h1.i - (int64_t)h0.i * h1.r; // Im(conj(h0)*h1)
     }
+    num_h_vectors++;
+  }
+  if (num_h_vectors == 0)
+    return;
 
-    return 0;
+  // total power, constant for all n
+  const int64_t trace = R[0][0].r + R[1][1].r;
+  int64_t signal_power = 0;
+
+  if (rank_indicator == 0) {
+    // Rank 1 (Table 5.2.2.2.1-1): 4 hypotheses, W_n = (1/sqrt(2))*[1; phi_n]
+    // W^H R W = (1/2) * (trace + 2*Re(phi_n * R[0][1]))
+    int64_t best = INT64_MIN, best_signal = 0;
+    for (int n = 0; n < 4; n++) {
+      int64_t cross = (int64_t)phi_r[n] * R[0][1].r - (int64_t)phi_i[n] * R[0][1].i;
+      int64_t m = trace + 2 * cross;
+      if (m > best) {
+        best = m;
+        pmi->i_2 = n;
+        best_signal = m;
+      }
+    }
+    // Average signal power per RE = best / (2 * num_REs)  (1/2 of W^H R W)
+    signal_power = best_signal / (2LL * num_h_vectors);
+    *precoded_sinr_dB = dB_fixed(signal_power) - dB_fixed(noise);
+  } else {
+    // Rank 2 (Table 5.2.2.2.1-1): 2 hypotheses.
+    // The two PMI hypotheses span the same 2D subspace, giving identical trace, determinant and eigenvalues of W^H R W.
+    // They differ only in how the basis is rotated:
+    //   - i_2=0  uses W = (1/2)[[1, 1],[1, -1]]   -> off-diag picks up Im(R_01)
+    //   - i_2=1  uses W = (1/2)[[1, 1],[j, -j]]   -> off-diag picks up Re(R_01)
+    // We will choose the rotation that minimises the off-diagonal magnitude (smaller cross-layer interference for sub-MMSE
+    // receivers).
+    pmi->i_2 = (llabs(R[0][1].i) < llabs(R[0][1].r)) ? 0 : 1;
+    signal_power = trace / (2LL * num_h_vectors);
+    *precoded_sinr_dB = dB_fixed(signal_power) - dB_fixed(noise);
   }
 
-  if(rank_indicator == 0 || rank_indicator == 1) {
-    c64_t sum[4] = {0};
-    c64_t sum2[4] = {0};
-    int64_t tested_precoded_sinr[4] = {0};
+  LOG_D(NR_PHY,
+        "[nr_csi_rs_pmi_2ports] signal_power = %li (%i dB), noise = %u (%i dB)\n  --> precoded_sinr_dB = %i dB\n",
+        signal_power,
+        (int)(10 * log10(signal_power)),
+        noise,
+        (int)(10 * log10(noise)),
+        *precoded_sinr_dB);
+}
 
-    for (int rb = csirs_config_pdu->start_rb; rb < (csirs_config_pdu->start_rb+csirs_config_pdu->nr_of_rbs); rb++) {
-
-      if (csirs_config_pdu->freq_density <= 1 && csirs_config_pdu->freq_density != (rb % 2)) {
-        continue;
-      }
-      uint16_t k = rb * NR_NB_SC_PER_RB;
-      for (int ant_rx = 0; ant_rx < frame_parms->nb_antennas_rx; ant_rx++) {
-        const c16_t p0 = csi_rs_estimated_channel_freq[ant_rx][0][k];
-        const c16_t p1 = csi_rs_estimated_channel_freq[ant_rx][1][k];
-
-        // H_p0 + 1*H_p1 = (H_p0_re + H_p1_re) + 1j*(H_p0_im + H_p1_im)
-        sum[0].r += (p0.r + p1.r);
-        sum[0].i += (p0.i + p1.i);
-        sum2[0].r += (sum[0].r * sum[0].r) >> log2_re;
-        sum2[0].i += (sum[0].i * sum[0].i) >> log2_re;
-
-        // H_p0 + 1j*H_p1 = (H_p0_re - H_p1_im) + 1j*(H_p0_im + H_p1_re)
-        sum[1].r += (p0.r - p1.i);
-        sum[1].i += (p0.i + p1.r);
-        sum2[1].r += (sum[1].r * sum[1].r) >> log2_re;
-        sum2[1].i += (sum[1].i * sum[1].i) >> log2_re;
-
-        // H_p0 - 1*H_p1 = (H_p0_re - H_p1_re) + 1j*(H_p0_im - H_p1_im)
-        sum[2].r += (p0.r - p1.r);
-        sum[2].i += (p0.i - p1.i);
-        sum2[2].r += (sum[2].r * sum[2].r) >> log2_re;
-        sum2[2].i += (sum[2].i * sum[2].i) >> log2_re;
-
-        // H_p0 - 1j*H_p1 = (H_p0_re + H_p1_im) + 1j*(H_p0_im - H_p1_re)
-        sum[3].r += (p0.r + p1.i);
-        sum[3].i += (p0.i - p1.r);
-        sum2[3].r += (sum[3].r * sum[3].r) >> log2_re;
-        sum2[3].i += (sum[3].i * sum[3].i) >> log2_re;
-      }
+// Rank 1 or 2; 4 ports (TS 38.214 - Tables 5.2.2.2.1-5 and -6)
+static void nr_csi_rs_pmi_4ports(int nb_antennas_rx,
+                                 int N_ports,
+                                 int osz,
+                                 const c16_t ch_freq[][N_ports][osz],
+                                 const fapi_nr_dl_config_csirs_pdu_rel15_t *cfg,
+                                 uint32_t noise,
+                                 uint8_t rank_indicator,
+                                 csi_rs_pmi_t *pmi,
+                                 int32_t *precoded_sinr_dB)
+{
+  if (rank_indicator > 1) {
+    LOG_W(NR_PHY, "PMI not implemented for 4 ports and rank %d\n", rank_indicator + 1);
+    return;
+  }
+  // R = sum H^H H, 4x4 Hermitian, upper triangle only.
+  c64_t R[4][4] = {{{0}}};
+  int num_h_vectors = 0;
+  for (int rb = cfg->start_rb; rb < cfg->start_rb + cfg->nr_of_rbs; rb++) {
+    if (cfg->freq_density <= 1 && cfg->freq_density != (rb % 2))
+      continue;
+    int k = rb * NR_NB_SC_PER_RB;
+    for (int ant_rx = 0; ant_rx < nb_antennas_rx; ant_rx++) {
+      c16_t h[4];
+      for (int p = 0; p < 4; p++)
+        h[p] = ch_freq[ant_rx][p][k];
+      for (int i = 0; i < 4; i++)
+        for (int j = i; j < 4; j++) {
+          R[i][j] = c64x16maddConjShift(h[i], h[j], R[i][j], 0);
+        }
     }
+    num_h_vectors++;
+  }
+  if (num_h_vectors == 0)
+    return;
 
-    // We should perform >>nr_csi_info->log2_re here for all terms, but since sum2_re and sum2_im can be high values,
-    // we performed this above.
-    for(int p = 0; p<4; p++) {
-      int64_t power_re = sum2[p].r - (sum[p].r >> log2_re) * (sum[p].r >> log2_re);
-      int64_t power_im = sum2[p].i - (sum[p].i >> log2_re) * (sum[p].i >> log2_re);
-      tested_precoded_sinr[p] = (power_re + power_im) / ipn;
-    }
+  // For W = c*[v_l; phi_n*v_l], W^H R W = (1/4)[A_l + B_l + 2*Re(phi_n*D_l)]
+  // A_l = v_l^H R[0:2,0:2] v_l   (Hermitian -> real)
+  // B_l = v_l^H R[2:4,2:4] v_l   (Hermitian -> real)
+  // D_l = v_l^H R[0:2,2:4] v_l   (general -> complex)
+  int64_t A[8];
+  int64_t B[8];
+  c64_t D[8];
+  for (int l = 0; l < 8; l++) {
+    const c64_t v = {vl_r[l], vl_i[l]};
+    A[l] = PMI_Q * PMI_Q * (R[0][0].r + R[1][1].r) + 2LL * PMI_Q * (R[0][1].r * v.r - R[0][1].i * v.i);
+    B[l] = PMI_Q * PMI_Q * (R[2][2].r + R[3][3].r) + 2LL * PMI_Q * (R[2][3].r * v.r - R[2][3].i * v.i);
+    D[l].r = PMI_Q * PMI_Q * (R[0][2].r + R[1][3].r) + PMI_Q * ((R[0][3].r + R[1][2].r) * v.r + (R[1][2].i - R[0][3].i) * v.i);
+    D[l].i = PMI_Q * PMI_Q * (R[0][2].i + R[1][3].i) + PMI_Q * ((R[0][3].i + R[1][2].i) * v.r + (R[0][3].r - R[1][2].r) * v.i);
+  }
 
-    if(rank_indicator == 0) {
-      for(int tested_i2 = 0; tested_i2 < 4; tested_i2++) {
-        if(tested_precoded_sinr[tested_i2] > tested_precoded_sinr[i2[0]]) {
-          i2[0] = tested_i2;
+  int64_t best = INT64_MIN, best_signal = 0;
+  if (rank_indicator == 0) {
+    // Rank 1, Table 5.2.2.2.1-5: 32 entries indexed by (l, n).
+    for (int l = 0; l < 8; l++) {
+      const int64_t AB = A[l] + B[l];
+      for (int n = 0; n < 4; n++) {
+        int64_t cross = (int64_t)phi_r[n] * D[l].r - (int64_t)phi_i[n] * D[l].i;
+        int64_t m = AB + 2 * cross;
+        if (m > best) {
+          best = m;
+          pmi->i_1_1 = l;
+          pmi->i_2 = n;
+          best_signal = m;
         }
       }
-      *precoded_sinr_dB = dB_fixed(tested_precoded_sinr[i2[0]]);
-    } else {
-      i2[0] = tested_precoded_sinr[0]+tested_precoded_sinr[2] > tested_precoded_sinr[1]+tested_precoded_sinr[3] ? 0 : 1;
-      *precoded_sinr_dB = dB_fixed((tested_precoded_sinr[i2[0]] + tested_precoded_sinr[i2[0]+2])>>1);
     }
-
   } else {
-    LOG_W(NR_PHY, "PMI computation is not implemented for rank indicator %i\n", rank_indicator+1);
-    return -1;
+    // Rank 2, Table 5.2.2.2.1-6: 32 entries indexed by (l, i13, n). l' = (l + 4*i13) mod 8.
+    // trace(W^H R W) = (1/8)[A_l + A_l' + B_l + B_l' + 2*Re(phi_n*(D_l - D_l'))]
+    for (int l = 0; l < 8; l++)
+      for (int i13 = 0; i13 < 2; i13++) {
+        const int lp = (l + 4 * i13) & 7;
+        const int64_t AB = (A[l] + A[lp]) + (B[l] + B[lp]);
+        const int64_t dDr = D[l].r - D[lp].r, dDi = D[l].i - D[lp].i;
+        for (int n = 0; n < 2; n++) {
+          int64_t cross = (int64_t)phi_r[n] * dDr - (int64_t)phi_i[n] * dDi;
+          int64_t m = AB + 2 * cross;
+          if (m > best) {
+            best = m;
+            pmi->i_1_1 = l;
+            pmi->i_1_3 = i13;
+            pmi->i_2 = n;
+            best_signal = m;
+          }
+        }
+      }
+  }
+  // Average signal power per RE = best / (4 * Q^2 * num_REs)  [rank 1]
+  // For rank 2 the (1/8) cancels in best, but we keep the (1/4) here for SINR consistency.
+  int64_t signal_power = best_signal / (4LL * PMI_Q * PMI_Q * num_h_vectors);
+  *precoded_sinr_dB = dB_fixed(signal_power) - dB_fixed(noise);
+
+  LOG_D(NR_PHY,
+        "[nr_csi_rs_pmi_4ports] signal_power = %li (%i dB), noise = %u (%i dB)\n  --> precoded_sinr_dB = %i dB\n",
+        signal_power,
+        (int)(10 * log10(signal_power)),
+        noise,
+        (int)(10 * log10(noise)),
+        *precoded_sinr_dB);
+}
+
+static c64_t block_elem_sum(const c64_t R[8][8], int row0, int col0, int size)
+{
+  c64_t sum = {0};
+  const int64_t scale = (int64_t)PMI_Q * PMI_Q;
+  for (int i = 0; i < size; i++) {
+    sum.r += R[row0 + i][col0 + i].r;
+    sum.i += R[row0 + i][col0 + i].i;
+  }
+  sum.r *= scale;
+  sum.i *= scale;
+  return sum;
+}
+
+// Rank 1; 8 ports (TS 38.214 - Table 5.2.2.2.1-9)
+static void nr_csi_rs_pmi_8ports(int nb_antennas_rx,
+                                 int N_ports,
+                                 int osz,
+                                 const c16_t ch_freq[][N_ports][osz],
+                                 const fapi_nr_dl_config_csirs_pdu_rel15_t *cfg,
+                                 uint32_t noise,
+                                 uint8_t rank_indicator,
+                                 csi_rs_pmi_t *pmi,
+                                 int32_t *precoded_sinr_dB)
+{
+  if (rank_indicator != 0) {
+    LOG_W(NR_PHY, "PMI not implemented for 8 ports and rank %d\n", rank_indicator + 1);
+    return;
+  }
+  // R = sum H^H H, 8x8 Hermitian, upper triangle only.
+  c64_t R[8][8] = {{{0}}};
+  int num_h_vectors = 0;
+  for (int rb = cfg->start_rb; rb < cfg->start_rb + cfg->nr_of_rbs; rb++) {
+    if (cfg->freq_density <= 1 && cfg->freq_density != (rb % 2))
+      continue;
+    int k = rb * NR_NB_SC_PER_RB;
+    for (int ant_rx = 0; ant_rx < nb_antennas_rx; ant_rx++) {
+      c16_t h[8];
+      for (int p = 0; p < 8; p++)
+        h[p] = ch_freq[ant_rx][p][k];
+      for (int i = 0; i < 8; i++)
+        for (int j = i; j < 8; j++) {
+          R[i][j] = c64x16maddConjShift(h[i], h[j], R[i][j], 0);
+        }
+      num_h_vectors++;
+    }
+  }
+  if (num_h_vectors == 0)
+    return;
+
+  // For W = c*[v_lm; phi_n*v_lm] with v_lm = v_l1 (x) u_m2 (4x1, |v_lm[i]|=Q), decompose R into 4x4 blocks
+  // R_TL = R[0:4,0:4], R_TR = R[0:4,4:8], R_BR = R[4:8,4:8],
+  // and precompute A_lm, B_lm, D_lm for each (l1, m2).
+  // The Kronecker structure means v_lm = [1, exp(j*pi*m2/4), exp(j*pi*l1/4), exp(j*pi*(l1+m2)/4)],
+  // so the fourth entry is just a lookup at index (l1+m2)%8.
+  int64_t A[8][8];
+  int64_t B[8][8];
+  c64_t D[8][8];
+  const c64_t Adiag = block_elem_sum(R, 0, 0, 4);
+  const c64_t Bdiag = block_elem_sum(R, 4, 4, 4);
+  const c64_t Ddiag = block_elem_sum(R, 0, 4, 4);
+  for (int l1 = 0; l1 < 8; l1++) {
+    for (int m2 = 0; m2 < 8; m2++) {
+      const c16_t v[4] = {{PMI_Q, 0},
+                          {vl_r[m2], vl_i[m2]},
+                          {vl_r[l1], vl_i[l1]},
+                          {vl_r[(l1 + m2) & 7], vl_i[(l1 + m2) & 7]}};
+      int64_t Aval = Adiag.r;
+      int64_t Bval = Bdiag.r;
+      c64_t Dval = Ddiag;
+      for (int i = 0; i < 4; i++)
+        for (int j = i + 1; j < 4; j++) {
+          // c = conj(v[i]) * v[j]
+          c64_t c = c64x16maddConjShift(v[i], v[j], (c64_t){0, 0}, 0);
+          // Hermitian blocks: 2 * Re(c * M[i][j])
+          Aval += 2 * (c.r * R[i][j].r - c.i * R[i][j].i);
+          Bval += 2 * (c.r * R[i + 4][j + 4].r - c.i * R[i + 4][j + 4].i);
+          // General block R_TR: c * R[i][j+4] + conj(c) * R[j][i+4]
+          Dval.r += c.r * (R[i][j + 4].r + R[j][i + 4].r) + c.i * (R[j][i + 4].i - R[i][j + 4].i);
+          Dval.i += c.r * (R[i][j + 4].i + R[j][i + 4].i) + c.i * (R[i][j + 4].r - R[j][i + 4].r);
+        }
+      A[l1][m2] = Aval;
+      B[l1][m2] = Bval;
+      D[l1][m2] = Dval;
+    }
   }
 
-  return 0;
+  // Enumerate (l1, m2, n) - 256 hypotheses, each evaluation is O(1).
+  int64_t best = INT64_MIN, best_signal = 0;
+  for (int l1 = 0; l1 < 8; l1++)
+    for (int m2 = 0; m2 < 8; m2++) {
+      const int64_t AB = A[l1][m2] + B[l1][m2];
+      for (int n = 0; n < 4; n++) {
+        int64_t cross = (int64_t)phi_r[n] * D[l1][m2].r - (int64_t)phi_i[n] * D[l1][m2].i;
+        int64_t m = AB + 2 * cross;
+        if (m > best) {
+          best = m;
+          pmi->i_1_1 = l1;
+          pmi->i_1_2 = m2;
+          pmi->i_2 = n;
+          best_signal = m;
+        }
+      }
+    }
+  // Average signal power per RE = best / (8 * Q^2 * N_RE_total)
+  int64_t sp = best_signal / (8LL * PMI_Q * PMI_Q * (int64_t)num_h_vectors);
+  *precoded_sinr_dB = dB_fixed(sp) - dB_fixed(noise);
+}
+
+static void nr_csi_rs_pmi_estimation(const PHY_VARS_NR_UE *ue,
+                                     const fapi_nr_dl_config_csirs_pdu_rel15_t *csirs_config_pdu,
+                                     const uint8_t N_ports,
+                                     const c16_t csi_rs_estimated_channel_freq[][N_ports][ue->frame_parms.ofdm_symbol_size],
+                                     const uint32_t interference_plus_noise_power,
+                                     const uint8_t rank_indicator,
+                                     csi_rs_pmi_t *pmi,
+                                     int32_t *precoded_sinr_dB)
+{
+  memset(pmi, 0, sizeof(*pmi));
+  const NR_DL_FRAME_PARMS *fp = &ue->frame_parms;
+  const int nrx = fp->nb_antennas_rx;
+  const int osz = fp->ofdm_symbol_size;
+  const uint32_t noise = (interference_plus_noise_power == 0) ? 1 : interference_plus_noise_power;
+
+  switch (N_ports) {
+    case 1:
+      nr_csi_rs_pmi_1port(nrx, N_ports, osz, csi_rs_estimated_channel_freq, csirs_config_pdu, noise, precoded_sinr_dB);
+      break;
+    case 2:
+      nr_csi_rs_pmi_2ports(nrx,
+                           N_ports,
+                           osz,
+                           csi_rs_estimated_channel_freq,
+                           csirs_config_pdu,
+                           noise,
+                           rank_indicator,
+                           pmi,
+                           precoded_sinr_dB);
+      break;
+    case 4:
+      nr_csi_rs_pmi_4ports(nrx,
+                           N_ports,
+                           osz,
+                           csi_rs_estimated_channel_freq,
+                           csirs_config_pdu,
+                           noise,
+                           rank_indicator,
+                           pmi,
+                           precoded_sinr_dB);
+      break;
+    case 8:
+      nr_csi_rs_pmi_8ports(nrx,
+                           N_ports,
+                           osz,
+                           csi_rs_estimated_channel_freq,
+                           csirs_config_pdu,
+                           noise,
+                           rank_indicator,
+                           pmi,
+                           precoded_sinr_dB);
+      break;
+    default:
+      LOG_W(NR_PHY, "PMI not implemented for %d antenna ports\n", N_ports);
+  }
 }
 
 int nr_csi_rs_cqi_estimation(const uint32_t precoded_sinr,
@@ -1000,8 +1279,7 @@ void nr_ue_csi_rs_procedures(PHY_VARS_NR_UE *ue,
     rank_indicator = nr_csi_rs_ri_estimation(ue, csirs_config_pdu, mapping_parms.ports, csi_rs_estimated_channel_freq, log2_maxh);
   }
 
-  uint8_t i1[3] = {0};
-  uint8_t i2[1] = {0};
+  csi_rs_pmi_t pmi = {0};
   uint8_t cqi = 0;
   int32_t precoded_sinr_dB = 0;
   // bit 3 in bitmap to indicate RI measurment
@@ -1012,8 +1290,7 @@ void nr_ue_csi_rs_procedures(PHY_VARS_NR_UE *ue,
                              csi_rs_estimated_channel_freq,
                              csi_info->csi_im_meas_computed ? csi_info->interference_plus_noise_power : noise_power,
                              rank_indicator,
-                             log2_re,
-                             i2,
+                             &pmi,
                              &precoded_sinr_dB);
 
     // bit 4 in bitmap to indicate RI measurment
@@ -1048,11 +1325,11 @@ void nr_ue_csi_rs_procedures(PHY_VARS_NR_UE *ue,
       break;
     case 26 :
       LOG_D(NR_PHY, "RI = %i i1 = %i.%i.%i, i2 = %i, SINR = %i dB, CQI = %i\n",
-            rank_indicator + 1, i1[0], i1[1], i1[2], i2[0], precoded_sinr_dB, cqi);
+            rank_indicator + 1, pmi.i_1_1, pmi.i_1_2, pmi.i_1_3, pmi.i_2, precoded_sinr_dB, cqi);
       break;
     case 27 :
       LOG_D(NR_PHY, "RSRP = %i dBm, RI = %i i1 = %i.%i.%i, i2 = %i, SINR = %i dB, CQI = %i\n",
-            rsrp_dBm, rank_indicator + 1, i1[0], i1[1], i1[2], i2[0], precoded_sinr_dB, cqi);
+            rsrp_dBm, rank_indicator + 1, pmi.i_1_1, pmi.i_1_2, pmi.i_1_3, pmi.i_2, precoded_sinr_dB, cqi);
       break;
     default :
       AssertFatal(false, "Not supported measurement configuration\n");
@@ -1073,8 +1350,10 @@ void nr_ue_csi_rs_procedures(PHY_VARS_NR_UE *ue,
       .is_neighboring_cell = false,
       .rsrp_dBm = rsrp_dBm,
       .rank_indicator = rank_indicator,
-      .i1 = *i1,
-      .i2 = *i2,
+      .i_1_1 = pmi.i_1_1,
+      .i_1_2 = pmi.i_1_2,
+      .i_1_3 = pmi.i_1_3,
+      .i_2 = pmi.i_2,
       .cqi = cqi,
       .radiolink_monitoring = RLM_no_monitoring, // TODO do be activated in case of RLM based on CSI-RS
   };
