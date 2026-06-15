@@ -187,7 +187,7 @@ bool fapi_nr_message_header_unpack(void *pMessageBuf,
   uint8_t *end = pMessageBuf + messageBufLen;
   // process the header
   int result =
-      (pull8(&pReadPackedMessage, &fapi_msg.num_msg, end) && pull8(&pReadPackedMessage, &fapi_msg.opaque_handle, end)
+      (pull8(&pReadPackedMessage, &fapi_msg.num_msg, end) && pull8(&pReadPackedMessage, (uint8_t *)&header->phy_id, end)
        && pull16(&pReadPackedMessage, &header->message_id, end) && pull32(&pReadPackedMessage, &header->message_length, end));
   return result != 0;
 }

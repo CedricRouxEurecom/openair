@@ -96,7 +96,7 @@ int fapi_nr_p7_message_pack(void *pMessageBuf, void *pPackedBuf, uint32_t packed
   // Message type ID [2,3]
   // Message Length [4,5,6,7]
   // Message Body [8,...]
-  if (!(push8(1, &pWritePackedMessage, pPackMessageEnd) && push8(0, &pWritePackedMessage, pPackMessageEnd)
+  if (!(push8(1, &pWritePackedMessage, pPackMessageEnd) && push8(pMessageHeader->phy_id, &pWritePackedMessage, pPackMessageEnd)
         && push16(pMessageHeader->message_id, &pWritePackedMessage, pPackMessageEnd))) {
     NFAPI_TRACE(NFAPI_TRACE_ERROR, "P7 Pack header failed\n");
     return -1;
