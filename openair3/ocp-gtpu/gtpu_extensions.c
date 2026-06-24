@@ -3,6 +3,7 @@
  */
 
 #include "gtpu_extensions.h"
+#include "nrup_common.h"
 #include "common/utils/assertions.h"
 #include "common/utils/ds/byte_array_producer.h"
 #include "LOG/log.h"
@@ -53,7 +54,7 @@ static int serialize_dl_data_delivery_status(byte_array_producer_t *b, dl_data_d
               && !ext->delivered_retransmitted_nr_pdcp_ind && !ext->cause_report,
               "todo\n");
 
-  uint8_t b1 = (1 << 4)
+  uint8_t b1 = (NRUP_PDU_DL_DATA_DELIVERY_STATUS << 4)
              | (ext->highest_transmitted_nr_pdcp_sn_ind << 3)
              | (ext->highest_delivered_nr_pdcp_sn_ind << 2)
              | (ext->final_frame_ind << 1)
@@ -86,7 +87,7 @@ static int serialize_dl_user_data(byte_array_producer_t *b, dl_user_data_t *ext)
               && !ext->retransmission_flag,
               "todo\n");
 
-  uint8_t b1 = (0 << 4) | (ext->dl_discard_blocks << 2) | (ext->dl_flush << 1) | ext->report_polling;
+  uint8_t b1 = (NRUP_PDU_DL_USER_DATA << 4) | (ext->dl_discard_blocks << 2) | (ext->dl_flush << 1) | ext->report_polling;
   uint8_t b2 = (ext->request_out_of_seq_report << 4)
              | (ext->report_delivered << 3)
              | (ext->user_data_existence_flag << 2)
