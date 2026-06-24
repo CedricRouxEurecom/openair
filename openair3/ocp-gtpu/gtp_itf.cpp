@@ -400,6 +400,7 @@ static void _gtpv1uSendDirect(instance_t instance,
         .nru_sequence_number = (uint32_t)nru_seqnum,
       }
     };
+    LOG_D(GTPU, "DL USER DATA TX: ue %ld bearer %d nru_sn %u\n", ue_id, bearer_id, (uint32_t)nru_seqnum);
     extension_count++;
   }
 
