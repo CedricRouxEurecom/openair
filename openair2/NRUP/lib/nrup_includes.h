@@ -6,5 +6,6 @@
 #define NRUP_INCLUDES_H
 
 #include "nrup_common.h"
+#include "nrup_dl_user_data.h"
 
 #endif /* NRUP_INCLUDES_H */
