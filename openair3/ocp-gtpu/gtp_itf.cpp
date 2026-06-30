@@ -397,15 +397,7 @@ static void _gtpv1uSendDirect(instance_t instance,
     ext[extension_count] = {
       .type = GTPU_EXT_DL_USER_DATA,
       .dl_user_data = {
-        .dl_discard_blocks = false,
-        .dl_flush = false,
-        .report_polling = false,
-        .request_out_of_seq_report = false,
-        .report_delivered = false,
-        .user_data_existence_flag = false,
-        .assistance_info_report_polling_flag = false,
-        .retransmission_flag = false,
-        .nru_sequence_number = (uint32_t)nru_seqnum
+        .nru_sequence_number = (uint32_t)nru_seqnum,
       }
     };
     extension_count++;
@@ -482,14 +474,6 @@ static void fillDlDeliveryStatusReport(gtpu_extension_header_t *ext, uint32_t RL
       /* previous version of the code was sending highest_transmitted_nr_pdcp_sn if
        * it is != 0, let's do the same for the moment */
       .highest_transmitted_nr_pdcp_sn_ind = NR_PDCP_PDU_SN != 0,
-      .highest_delivered_nr_pdcp_sn_ind = false,
-      .final_frame_ind = false,
-      .lost_packet_report = false,
-      .delivered_nr_pdcp_sn_range_ind = false,
-      .data_rate_ind = false,
-      .retransmitted_nr_pdcp_sn_ind = false,
-      .delivered_retransmitted_nr_pdcp_ind = false,
-      .cause_report = false,
       .desired_buffer_size = RLC_buffer_availability,
       .highest_transmitted_nr_pdcp_sn = NR_PDCP_PDU_SN
     }
