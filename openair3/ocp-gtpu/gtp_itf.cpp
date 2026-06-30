@@ -1251,7 +1251,9 @@ static int Gtpv1uHandleGpdu(int h, uint8_t *msgBuf, uint32_t msgBufLen, const st
     }
   }
 
-  /* Delivery status report path uses DRB-based RLC state: keep it on non-SDAP path only. */
+  /* DU TX: DL DATA DELIVERY STATUS when CU set Report Delivered on DL USER DATA (TS 38.425 clause 5.4).
+   * Note: uses DRB-based RLC state, keep it on non-SDAP path only. SN%5 is a temporary rate limit until
+   * F1 congestion control policy is implemented.*/
   if (!uedata.callBackSDAP && NR_PDCP_PDU_SN > 0 && NR_PDCP_PDU_SN % 5 == 0) {
     int rlc_tx_buffer_space = nr_rlc_get_available_tx_space(ctxt.rntiMaybeUEid, rb_id + 3);
     uint32_t teid = globGtp.te2ue_mapping[ntohl(msgHdr->teid)].outgoing_teid;
