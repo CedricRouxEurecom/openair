@@ -99,6 +99,9 @@ typedef struct Gtpv1uExtHeader {
 // TS 29.281, 5.2.1
 #define EXT_HDR_LNTH_OCTET_UNITS (4)
 #define NO_MORE_EXT_HDRS (0)
+/* TS 29.281 clause 5.2.1 Figure 5.2.1-1: Extension Header Length in 4 octets units.
+ * Extension Header Content excludes octet 1 (length field) and octet m+1 (Next Extension Header Type). */
+#define GTPU_EXT_HDR_CONTENT_LEN(ext_len_field) ((ext_len_field)*EXT_HDR_LNTH_OCTET_UNITS - 2)
 
 // TS 29.060, table 7.1 defines the possible message types
 // here are all the possible messages (3GPP R16)
@@ -1177,22 +1180,29 @@ static int Gtpv1uHandleGpdu(int h, uint8_t *msgBuf, uint32_t msgBufLen, const st
           }
           uint8_t PDU_type = (msgBuf[offset + 1] >> 4) & 0x0f;
           if (PDU_type == 0) { // DL USER Data Format
-            int additional_offset = 6; // Additional offset capturing the first non-mandatory octet (TS 38.425, Figure 5.5.2.1-1)
-            if (msgBuf[offset + 1] >> 2 & 0x1) { // DL Discard Blocks flag is present
-              LOG_I(GTPU, "DL User Data: DL Discard Blocks handling not enabled\n");
-              additional_offset = additional_offset + 9; // For the moment ignore
+            /* TS 38.425 Figure 5.5.2.1-1: NR-UP payload in NR RAN Container (29.281) */
+            const int container_len = GTPU_EXT_HDR_CONTENT_LEN(extension_header_length);
+
+            /* TS 29.281 Figure 5.2.1-1: offset is the Length octet, NR-UP starts at offset+1 */
+            if (offset + 1 + container_len > msgBufLen) {
+              LOG_E(GTPU, "gtp-u received header is malformed, ignore gtp packet\n");
+              return GTPNOK;
             }
-            if (msgBuf[offset + 1] >> 1 & 0x1) { // DL Flush flag is present
-              LOG_I(GTPU, "DL User Data: DL Flush handling not enabled\n");
-              additional_offset = additional_offset + 3; // For the moment ignore
+            nrup_dl_user_data_t dl_user_data = {0};
+            if (!decode_nrup_dl_user_data(msgBuf + offset + 1, container_len, &dl_user_data)) {
+              LOG_E(GTPU, "gtp-u received header is malformed, ignore gtp packet\n");
+              return GTPNOK;
             }
-            if ((msgBuf[offset + 2] >> 3) & 0x1) { //"Report delivered" enabled (TS 38.425, 5.4)
-              /*Store the NR PDCP PDU SN for which a delivery status report shall be generated once the
-               *PDU gets forwarded to the lower layers*/
-              // NR_PDCP_PDU_SN = msgBuf[offset+6] << 16 | msgBuf[offset+7] << 8 | msgBuf[offset+8];
-              NR_PDCP_PDU_SN = msgBuf[offset + additional_offset] << 16 | msgBuf[offset + additional_offset + 1] << 8
-                               | msgBuf[offset + additional_offset + 2];
-              LOG_D(GTPU, " NR_PDCP_PDU_SN: %u \n", NR_PDCP_PDU_SN);
+            LOG_D(GTPU,
+                  "DL USER DATA RX: ue %lx drb %u nru_sn %u pdcp_sn %u\n",
+                  uedata.ue_id,
+                  uedata.incoming_rb_id,
+                  dl_user_data.nru_sequence_number,
+                  dl_user_data.report_delivered ? dl_user_data.nr_pdcp_pdu_sn : 0u);
+            if (dl_user_data.report_delivered) {
+              /* TS 38.425 clause 5.4: store the NR PDCP PDU SN for which a delivery status report
+               * shall be generated when the PDU reaches the lower layers */
+              NR_PDCP_PDU_SN = dl_user_data.nr_pdcp_pdu_sn;
             }
           } else {
             LOG_W(GTPU, "NR-RAN container type: %d not supported \n", PDU_type);
