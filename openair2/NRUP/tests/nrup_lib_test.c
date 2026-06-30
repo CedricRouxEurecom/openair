@@ -12,6 +12,7 @@
 #include "common/utils/LOG/log.h"
 #include "openair1/SIMULATION/TOOLS/sim.h"
 
+#include "lib/nrup_dl_data_delivery_status.h"
 #include "lib/nrup_dl_user_data.h"
 
 configmodule_interface_t *uniqCfg = NULL;
@@ -100,6 +101,106 @@ static void test_dl_user_data(void)
   AssertFatal(!decode_nrup_dl_user_data(buf, b.pos, &decoded), "decode must reject Report Delivered without NR PDCP PDU SN\n");
 }
 
+static void nrup_dl_data_delivery_status_encdec_test(const nrup_dl_data_delivery_status_t *orig)
+{
+  uint8_t buf[64];
+  byte_array_producer_t b = byte_array_producer_from_buffer(buf, sizeof(buf));
+  AssertFatal(encode_nrup_dl_data_delivery_status(&b, orig) == 1, "encode_nrup_dl_data_delivery_status() failed\n");
+
+  nrup_dl_data_delivery_status_t decoded;
+  AssertFatal(decode_nrup_dl_data_delivery_status(buf, b.pos, &decoded), "decode_nrup_dl_data_delivery_status() failed\n");
+  AssertFatal(eq_nrup_dl_data_delivery_status(orig, &decoded),
+              "eq_nrup_dl_data_delivery_status(): decoded message doesn't match\n");
+
+  /* TS 38.425 clause 5.5.1: ignore remaining octets */
+  buf[b.pos] = 0xa5;
+  AssertFatal(decode_nrup_dl_data_delivery_status(buf, b.pos + 1, &decoded), "decode_nrup_dl_data_delivery_status() failed\n");
+  AssertFatal(eq_nrup_dl_data_delivery_status(orig, &decoded),
+              "eq_nrup_dl_data_delivery_status(): decoded message doesn't match\n");
+}
+
+/** @brief DL DATA DELIVERY STATUS round-trip and malformed PDU rejection (TS 38.425 Figure 5.5.2.2-1)
+ * @note Random IEs use taus() */
+static void test_dl_data_delivery_status(void)
+{
+  set_taus_seed(0);
+
+  nrup_dl_data_delivery_status_encdec_test(&(const nrup_dl_data_delivery_status_t){
+      .desired_buffer_size = taus(),
+  });
+
+  nrup_sn_range_t lost_range = {.start = rand_pdcp_sn(), .end = rand_pdcp_sn()};
+  nrup_sn_range_t delivered_range = {.start = rand_pdcp_sn(), .end = rand_pdcp_sn()};
+
+  nrup_dl_data_delivery_status_t full_msg = {
+      .final_frame_ind = rand_bool(),
+      .desired_buffer_size = taus(),
+  };
+  if (rand_bool()) {
+    full_msg.desired_data_rate_present = true;
+    full_msg.desired_data_rate = taus();
+    LOG_I(NR_UP, "DDDS random IE enabled: desired data rate\n");
+  }
+  if (rand_bool()) {
+    full_msg.lost_nru_ranges_present = true;
+    full_msg.lost_nru_ranges.n_ranges = 1;
+    full_msg.lost_nru_ranges.ranges[0] = lost_range;
+    LOG_I(NR_UP, "DDDS random IE enabled: lost NR-U SN ranges\n");
+  }
+  if (rand_bool()) {
+    full_msg.highest_delivered_nr_pdcp_sn_present = true;
+    full_msg.highest_delivered_nr_pdcp_sn = rand_pdcp_sn();
+    LOG_I(NR_UP, "DDDS random IE enabled: highest delivered NR PDCP SN\n");
+  }
+  if (rand_bool()) {
+    full_msg.highest_transmitted_nr_pdcp_sn_present = true;
+    full_msg.highest_transmitted_nr_pdcp_sn = rand_pdcp_sn();
+    LOG_I(NR_UP, "DDDS random IE enabled: highest transmitted NR PDCP SN\n");
+  }
+  if (rand_bool()) {
+    full_msg.cause_value_present = true;
+    full_msg.cause_value = taus() & 0xff;
+    LOG_I(NR_UP, "DDDS random IE enabled: cause value\n");
+  }
+  if (rand_bool()) {
+    full_msg.delivered_retransmitted_nr_pdcp_sn_present = true;
+    full_msg.delivered_retransmitted_nr_pdcp_sn = rand_pdcp_sn();
+    LOG_I(NR_UP, "DDDS random IE enabled: delivered retransmitted NR PDCP SN\n");
+  }
+  if (rand_bool()) {
+    full_msg.retransmitted_nr_pdcp_sn_present = true;
+    full_msg.retransmitted_nr_pdcp_sn = rand_pdcp_sn();
+    LOG_I(NR_UP, "DDDS random IE enabled: retransmitted NR PDCP SN\n");
+  }
+  if (rand_bool()) {
+    full_msg.delivered_oos_ranges_present = true;
+    full_msg.delivered_oos_ranges.n_ranges = 1;
+    full_msg.delivered_oos_ranges.ranges[0] = delivered_range;
+    LOG_I(NR_UP, "DDDS random IE enabled: delivered out-of-sequence NR PDCP SN ranges\n");
+  }
+
+  nrup_dl_data_delivery_status_encdec_test(&full_msg);
+
+  uint8_t buf[64];
+  byte_array_producer_t b = byte_array_producer_from_buffer(buf, sizeof(buf));
+  const nrup_dl_data_delivery_status_t msg = {.desired_buffer_size = 1};
+  AssertFatal(encode_nrup_dl_data_delivery_status(&b, &msg) == 1, "encode_nrup_dl_data_delivery_status() failed\n");
+  AssertFatal(b.pos % 4 == 2, "TS 38.425 clause 5.5.3.24: NR-U PDU length shall be n*4-2\n");
+  buf[0] |= 1u << NRUP_DDDS_HIGHEST_TRANSMITTED; /* flag set without highest_transmitted_nr_pdcp_sn in orig */
+
+  nrup_dl_data_delivery_status_t decoded;
+  LOG_A(NR_UP, "Expected failure: Highest Transmitted flag without NR PDCP PDU SN body\n");
+  AssertFatal(!decode_nrup_dl_data_delivery_status(buf, b.pos, &decoded),
+              "decode must reject Highest Transmitted without NR PDCP PDU SN\n");
+
+  b = byte_array_producer_from_buffer(buf, sizeof(buf));
+  AssertFatal(encode_nrup_dl_data_delivery_status(&b, &msg) == 1, "encode_nrup_dl_data_delivery_status() failed\n");
+  buf[0] = (buf[0] & 0x0f) | (NRUP_PDU_DL_USER_DATA << NRUP_DDDS_PDU_TYPE_SHIFT);
+
+  LOG_A(NR_UP, "Expected failure: invalid DL DATA DELIVERY STATUS PDU type\n");
+  AssertFatal(!decode_nrup_dl_data_delivery_status(buf, b.pos, &decoded), "decode must reject wrong PDU type\n");
+}
+
 int main(int argc, char **argv)
 {
   uniqCfg = load_configmodule(argc, argv, CONFIG_ENABLECMDLINEONLY);
@@ -107,5 +208,6 @@ int main(int argc, char **argv)
   logInit();
   set_log(NR_UP, OAILOG_INFO);
   test_dl_user_data();
+  test_dl_data_delivery_status();
   return 0;
 }

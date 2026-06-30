@@ -18,6 +18,11 @@
 #define NRUP_NR_U_SN_MAX 0xffffffu
 #define NRUP_NR_PDCP_SN_MAX 0x3ffffu
 
+/* TS 38.425 §5.5.3.15 Number of lost NR-U SN ranges reported */
+#define NRUP_MAX_LOST_NRU_SN_RANGES 161
+/* TS 38.425 §5.5.3.51 Number of delivered out-of-sequence PDCP SN ranges */
+#define NRUP_MAX_DELIVERED_OOS_SN_RANGES 255
+
 typedef struct {
   const uint8_t *pdu;
   int pdu_len;

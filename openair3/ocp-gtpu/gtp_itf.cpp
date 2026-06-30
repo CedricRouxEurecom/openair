@@ -42,22 +42,6 @@ typedef struct Gtpv1uMsgHeader {
   teid_t teid;
 } __attribute__((packed)) Gtpv1uMsgHeaderT;
 
-// TS 38.425, Figure 5.5.2.2-1
-typedef struct DlDataDeliveryStatus_flags {
-  uint8_t LPR: 1; // Lost packet report
-  uint8_t FFI: 1; // Final Frame Ind
-  uint8_t deliveredPdcpSn: 1; // Highest Delivered NR PDCP SN Ind
-  uint8_t transmittedPdcpSn: 1; // Highest Transmitted NR PDCP SN Ind
-  uint8_t pduType: 4; // PDU type
-  uint8_t CR: 1; // Cause Report
-  uint8_t deliveredReTxPdcpSn: 1; // Delivered retransmitted NR PDCP SN Ind
-  uint8_t reTxPdcpSn: 1; // Retransmitted NR PDCP SN Ind
-  uint8_t DRI: 1; // Data Rate Indication
-  uint8_t deliveredPdcpSnRange: 1; // Delivered NR PDCP SN Range Ind
-  uint8_t spare: 3;
-  uint32_t drbBufferSize; // Desired buffer size for the data radio bearer
-} __attribute__((packed)) DlDataDeliveryStatus_flagsT;
-
 typedef struct Gtpv1uMsgHeaderOptFields {
   uint8_t seqNum1Oct;
   uint8_t seqNum2Oct;
