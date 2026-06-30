@@ -27,6 +27,8 @@ extern "C" {
 
 #include "gtp_itf.h"
 #include "gtpu_extensions.h"
+#include "nrup_common.h"
+#include "nrup_dl_data_delivery_status.h"
 
 #pragma pack(1)
 
@@ -1188,6 +1190,26 @@ static int Gtpv1uHandleGpdu(int h, uint8_t *msgBuf, uint32_t msgBufLen, const st
                * shall be generated when the PDU reaches the lower layers */
               NR_PDCP_PDU_SN = dl_user_data.nr_pdcp_pdu_sn;
             }
+          } else if (PDU_type == NRUP_PDU_DL_DATA_DELIVERY_STATUS) {
+            /* TS 38.425 Figure 5.5.2.2-1: NR-UP payload in NR RAN Container (29.281) */
+            const int container_len = GTPU_EXT_HDR_CONTENT_LEN(extension_header_length);
+
+            /* TS 29.281 Figure 5.2.1-1: offset is the Length octet, NR-UP starts at offset+1 */
+            if (offset + 1 + container_len > msgBufLen) {
+              LOG_E(GTPU, "gtp-u received header is malformed, ignore gtp packet\n");
+              return GTPNOK;
+            }
+            nrup_dl_data_delivery_status_t ddds = {0};
+            if (!decode_nrup_dl_data_delivery_status(msgBuf + offset + 1, container_len, &ddds)) {
+              LOG_W(GTPU, "DL DATA DELIVERY STATUS: malformed NR-RAN container\n");
+              break;
+            }
+            LOG_D(GTPU,
+                  "DL DATA DELIVERY STATUS RX: ue %lx drb %u desired_buffer_size %u highest_tx_sn %u\n",
+                  uedata.ue_id,
+                  uedata.incoming_rb_id,
+                  ddds.desired_buffer_size,
+                  ddds.highest_transmitted_nr_pdcp_sn_present ? ddds.highest_transmitted_nr_pdcp_sn : 0u);
           } else {
             LOG_W(GTPU, "NR-RAN container type: %d not supported \n", PDU_type);
           }
