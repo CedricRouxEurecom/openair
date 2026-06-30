@@ -454,16 +454,16 @@ void gtpv1uSendDirectWithNRUSeqNum(instance_t instance,
   _gtpv1uSendDirect(instance, ue_id, bearer_id, NO_QFI, buf, len, false, false, nru_seqnum);
 }
 
-static void fillDlDeliveryStatusReport(gtpu_extension_header_t *ext, uint32_t RLC_buffer_availability, uint32_t NR_PDCP_PDU_SN)
+static void fillDlDeliveryStatusReport(gtpu_extension_header_t *ext,
+                                       uint32_t RLC_buffer_availability,
+                                       uint32_t nr_pdcp_pdu_sn)
 {
   *ext = {
     .type = GTPU_EXT_DL_DATA_DELIVERY_STATUS,
     .dl_data_delivery_status = {
-      /* previous version of the code was sending highest_transmitted_nr_pdcp_sn if
-       * it is != 0, let's do the same for the moment */
-      .highest_transmitted_nr_pdcp_sn_ind = NR_PDCP_PDU_SN != 0,
       .desired_buffer_size = RLC_buffer_availability,
-      .highest_transmitted_nr_pdcp_sn = NR_PDCP_PDU_SN
+      .highest_transmitted_nr_pdcp_sn_present = true,
+      .highest_transmitted_nr_pdcp_sn = nr_pdcp_pdu_sn,
     }
   };
 }
@@ -1253,12 +1253,17 @@ static int Gtpv1uHandleGpdu(int h, uint8_t *msgBuf, uint32_t msgBufLen, const st
 
   /* Delivery status report path uses DRB-based RLC state: keep it on non-SDAP path only. */
   if (!uedata.callBackSDAP && NR_PDCP_PDU_SN > 0 && NR_PDCP_PDU_SN % 5 == 0) {
-    LOG_D(GTPU, "Create and send DL DATA Delivery status for the previously received PDU, NR_PDCP_PDU_SN: %u \n", NR_PDCP_PDU_SN);
     int rlc_tx_buffer_space = nr_rlc_get_available_tx_space(ctxt.rntiMaybeUEid, rb_id + 3);
-    LOG_D(GTPU, "Available buffer size in RLC for Tx: %d \n", rlc_tx_buffer_space);
+    uint32_t teid = globGtp.te2ue_mapping[ntohl(msgHdr->teid)].outgoing_teid;
+    LOG_D(GTPU,
+          "DL DATA DELIVERY STATUS TX: ue %lx drb %u nr_pdcp_pdu_sn %u desired_buffer_size %u teid 0x%x\n",
+          uedata.ue_id,
+          rb_id,
+          NR_PDCP_PDU_SN,
+          rlc_tx_buffer_space,
+          teid);
     gtpu_extension_header_t ext;
     fillDlDeliveryStatusReport(&ext, rlc_tx_buffer_space, NR_PDCP_PDU_SN);
-    uint32_t teid = globGtp.te2ue_mapping[ntohl(msgHdr->teid)].outgoing_teid;
     gtpv1u_bearer_t bearer = create_bearer(h, addr, teid, 0);
     gtpv1uCreateAndSendMsg(&bearer,
                            GTP_GPDU,
