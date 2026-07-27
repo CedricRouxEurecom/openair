@@ -175,8 +175,9 @@ static int nr_get_csi_rs_signal(const PHY_VARS_NR_UE *ue,
 
           // loop over frequency resource elements within a group
           for (int kp = 0; kp <= csi_mapping->kprime; kp++) {
-
-            uint16_t k = (fp->first_carrier_offset + (rb * NR_NB_SC_PER_RB) + csi_mapping->koverline[cdm_id] + kp) % fp->ofdm_symbol_size;
+            uint k = CIRCULAR_INC(fp->first_carrier_offset,
+                                  rb * NR_NB_SC_PER_RB + csi_mapping->koverline[cdm_id] + kp,
+                                  fp->ofdm_symbol_size);
 
             // loop over time resource elements within a group
             for (int lp = 0; lp <= csi_mapping->lprime; lp++) {
@@ -184,11 +185,8 @@ static int nr_get_csi_rs_signal(const PHY_VARS_NR_UE *ue,
               uint64_t symbol_offset = symb * fp->ofdm_symbol_size;
               const c16_t *rx_signal = &rxdataF[ant_rx][symbol_offset];
               c16_t *rx_csi_rs_signal = &csi_rs_received_signal[ant_rx][symbol_offset];
-              rx_csi_rs_signal[k].r = rx_signal[k].r;
-              rx_csi_rs_signal[k].i = rx_signal[k].i;
-
-              rsrp_sum += (((int32_t)(rx_csi_rs_signal[k].r)*rx_csi_rs_signal[k].r) +
-                           ((int32_t)(rx_csi_rs_signal[k].i)*rx_csi_rs_signal[k].i));
+              rx_csi_rs_signal[k] = rx_signal[k];
+              rsrp_sum += squaredMod(rx_csi_rs_signal[k]);
 
               meas_count++;
 
@@ -288,14 +286,14 @@ static int nr_csi_rs_channel_estimation(
 
           // loop over frequency resource elements within a group
           for (int kp = 0; kp <= csi_mapping->kprime; kp++) {
-            uint16_t kinit_rx = (fp->first_carrier_offset + rb * NR_NB_SC_PER_RB) % fp->ofdm_symbol_size;
-            uint16_t k_rx = kinit_rx + csi_mapping->koverline[cdm_id] + kp;
-            uint16_t kinit_tx = rb * NR_NB_SC_PER_RB;
-            uint16_t k_tx = kinit_tx + csi_mapping->koverline[cdm_id] + kp;
+            const uint kinit_rx = CIRCULAR_INC(fp->first_carrier_offset, rb * NR_NB_SC_PER_RB, fp->ofdm_symbol_size);
+            const uint k_rx = CIRCULAR_INC(kinit_rx, csi_mapping->koverline[cdm_id] + kp, fp->ofdm_symbol_size);
+            uint kinit_tx = rb * NR_NB_SC_PER_RB;
+            uint k_tx = kinit_tx + csi_mapping->koverline[cdm_id] + kp;
 
             // loop over time resource elements within a group
             for (int lp = 0; lp <= csi_mapping->lprime; lp++) {
-              uint16_t symb = lp + csi_mapping->loverline[cdm_id];
+              uint symb = lp + csi_mapping->loverline[cdm_id];
               uint64_t symbol_offset = symb * fp->ofdm_symbol_size;
               const c16_t *tx_csi_rs_signal = &csi_rs_generated_signal[port_tx][symbol_offset];
               const c16_t *rx_csi_rs_signal = &csi_rs_received_signal[ant_rx][symbol_offset];
@@ -750,16 +748,10 @@ static void nr_csi_im_power_estimation(const PHY_VARS_NR_UE *ue,
       const c16_t *rx_signal = &rxdataF[ant_rx][symbol_offset];
 
       for (int rb = csiim_config_pdu->start_rb; rb < end_rb; rb++) {
-
-        uint16_t sc0_offset = (frame_parms->first_carrier_offset + rb*NR_NB_SC_PER_RB) % frame_parms->ofdm_symbol_size;
+        uint sc0_offset = CIRCULAR_INC(frame_parms->first_carrier_offset, rb * NR_NB_SC_PER_RB, frame_parms->ofdm_symbol_size);
 
         for (int sc_idx = 0; sc_idx < 4; sc_idx++) {
-
-          uint16_t sc = sc0_offset + csiim_config_pdu->k_csiim[sc_idx];
-          if (sc >= frame_parms->ofdm_symbol_size) {
-            sc -= frame_parms->ofdm_symbol_size;
-          }
-
+          int sc = CIRCULAR_INC(sc0_offset, csiim_config_pdu->k_csiim[sc_idx], frame_parms->ofdm_symbol_size);
 #ifdef NR_CSIIM_DEBUG
           LOG_I(NR_PHY, "(ant_rx %i, sc %i) real %i, imag %i\n", ant_rx, sc, rx_signal[sc].r, rx_signal[sc].i);
 #endif

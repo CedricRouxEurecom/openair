@@ -218,10 +218,7 @@ void nr_decode_pucch0(PHY_VARS_gNB *gNB,
   for (int l = 0; l < pucch_pdu->nr_of_symbols; l++) {
     uint8_t l2 = l + pucch_pdu->start_symbol_index;
 
-    re_offset[l] = (12 * prb_offset[l]) + frame_parms->first_carrier_offset;
-    if (re_offset[l] >= frame_parms->ofdm_symbol_size)
-      re_offset[l] -= frame_parms->ofdm_symbol_size;
-
+    re_offset[l] = CIRCULAR_INC(frame_parms->first_carrier_offset, 12 * prb_offset[l], frame_parms->ofdm_symbol_size);
     for (int aa = 0; aa < num_sp_streams; aa++) {
       c16_t rp[nb_re_pucch];
       memset(rp, 0, sizeof(rp));
@@ -1141,11 +1138,12 @@ void nr_decode_pucch2(PHY_VARS_gNB *gNB,
   int soffset = (slot % RU_RX_SLOT_DEPTH) * frame_parms->symbols_per_slot * frame_parms->ofdm_symbol_size;
   uint16_t starting_prb = pucch_pdu->prb_start + pucch_pdu->bwp_start;
   int re_offset[nb_symbols];
-  re_offset[0] = (12 * starting_prb + frame_parms->first_carrier_offset) % frame_parms->ofdm_symbol_size;
+  re_offset[0] = CIRCULAR_INC(frame_parms->first_carrier_offset, 12 * starting_prb, frame_parms->ofdm_symbol_size);
   if (nb_symbols == 2) {
     if (pucch_pdu->freq_hop_flag)
-      re_offset[1] = (12 * (pucch_pdu->second_hop_prb + pucch_pdu->bwp_start) + frame_parms->first_carrier_offset)
-                     % frame_parms->ofdm_symbol_size;
+      re_offset[1] = CIRCULAR_INC(frame_parms->first_carrier_offset,
+                                  12 * (pucch_pdu->second_hop_prb + pucch_pdu->bwp_start),
+                                  frame_parms->ofdm_symbol_size);
     else
       re_offset[1] = re_offset[0];
   }
@@ -1161,7 +1159,7 @@ void nr_decode_pucch2(PHY_VARS_gNB *gNB,
   int64_t pucch2_lev = 0;
   for (int aa = 0; aa < Prx; aa++) {
     for (int symb = 0; symb < nb_symbols; symb++) {
-      c16_t *tmp_rp = ((c16_t *)&rxdataF[aa][soffset + (l2 + symb) * frame_parms->ofdm_symbol_size]);
+      c16_t *tmp_rp = &rxdataF[aa][soffset + (l2 + symb) * frame_parms->ofdm_symbol_size];
 
       if (re_offset[symb] + nb_re_pucch < frame_parms->ofdm_symbol_size) {
         memcpy(rp[aa][symb], &tmp_rp[re_offset[symb]], nb_re_pucch * sizeof(c16_t));
