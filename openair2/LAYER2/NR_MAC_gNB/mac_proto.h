@@ -97,7 +97,7 @@ int check_sc_fdma_rbsize(long transform_precoding, uint16_t rb);
 
 void nr_mac_pcch_queue_init(NR_COMMON_channels_t *cc);
 void nr_mac_pcch_queue_free(NR_COMMON_channels_t *cc);
-void nr_mac_pcch_enqueue(module_id_t module_id, uint64_t fiveg_s_tmsi, uint16_t ue_id);
+void nr_mac_pcch_enqueue(gNB_MAC_INST *mac, nr_cell_sched_t *cell, uint64_t fiveg_s_tmsi, uint16_t ue_id);
 void schedule_nr_pcch(gNB_MAC_INST *gNB_mac,
                       nr_cell_sched_t *cell,
                       frame_t frameP,

@@ -53,15 +53,11 @@ static void nr_mac_pcch_queue_reenqueue(spsc_q_t *q, module_id_t module_id, cons
  *
  * @param fiveg_s_tmsi ng-5G-S-TMSI from NGAP/F1AP Paging (TS 38.413 / TS 38.473).
  * @param ue_id        UE identity index value mod 1024 (= UE_ID for PF/PO, TS 38.304 §7.1). */
-void nr_mac_pcch_enqueue(module_id_t module_id, uint64_t fiveg_s_tmsi, uint16_t ue_id)
+void nr_mac_pcch_enqueue(gNB_MAC_INST *mac, nr_cell_sched_t *cell, uint64_t fiveg_s_tmsi, uint16_t ue_id)
 {
-  gNB_MAC_INST *mac = RC.nrmac[module_id];
   DevAssert(mac);
-
-  // TODO: SEE IF IT CAN GET MAC AND CELL FROM CALLER
-  // Call sequence:f1ap_handle_message: DU_handle_Paging - f1_paging - nr_mac_pcch_enqueue
-  // openair2/F1AP/f1ap_handlers.c:102
-  NR_COMMON_channels_t *cc = &mac->cells[0].common_channels;
+  DevAssert(cell);
+  NR_COMMON_channels_t *cc = &cell->common_channels;
 
   const nr_mac_pcch_record_t item = {
       .ue_id = ue_id % 1024,
@@ -69,10 +65,10 @@ void nr_mac_pcch_enqueue(module_id_t module_id, uint64_t fiveg_s_tmsi, uint16_t 
   };
 
   NR_SCHED_LOCK(&mac->sched_lock);
-  nr_mac_pcch_queue_push(&cc->pcch_queue, module_id, &item);
+  nr_mac_pcch_queue_push(&cc->pcch_queue, mac->Mod_id, &item);
   NR_SCHED_UNLOCK(&mac->sched_lock);
 
-  LOG_I(NR_MAC, "[gNB %d] PCCH record enqueued UE_ID=%u (5G-S-TMSI=0x%012lx)\n", module_id, item.ue_id, fiveg_s_tmsi);
+  LOG_I(NR_MAC, "[gNB %d] PCCH record enqueued UE_ID=%u (5G-S-TMSI=0x%012lx)\n", mac->Mod_id, item.ue_id, fiveg_s_tmsi);
 }
 
 /** @brief Get paging search space (Type2-PDCCH CSS) from common search space list by pagingSearchSpace ID.
