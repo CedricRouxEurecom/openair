@@ -1417,7 +1417,8 @@ int nr_param_resp_cb(nfapi_vnf_config_t *config, int p5_idx, nfapi_nr_param_resp
   vnf_p7_info *p7_vnf = vnf->p7_vnfs;
   pnf_info *pnf = vnf->pnfs;
   phy_info *phy = pnf->phys;
-  nfapi_nr_config_request_scf_t *req = &RC.nrmac[0]->cells[resp->header.phy_id].config; // check
+  nr_cell_sched_t *cell = nr_mac_get_cell_by_phy_id(RC.nrmac[0], resp->header.phy_id);
+  nfapi_nr_config_request_scf_t *req = &cell->config; // check
 #ifndef ENABLE_AERIAL
   struct sockaddr_in pnf_p7_sockaddr;
   phy->remote_port = resp->nfapi_config.p7_pnf_port.value;

@@ -903,7 +903,7 @@ void handle_nr_uci_pucch_0_1(module_id_t mod_id, int cell_id, frame_t frame, slo
 {
   gNB_MAC_INST *nrmac = RC.nrmac[mod_id];
   NR_SCHED_LOCK(&nrmac->sched_lock);
-  nr_cell_sched_t *cell = &nrmac->cells[cell_id];
+  nr_cell_sched_t *cell = nr_mac_get_cell_by_phy_id(nrmac, cell_id);
   NR_UE_info_t *UE = find_nr_UE(&nrmac->UE_info, uci_01->rnti);
   bool is_ra = false;
   if (!UE) {
@@ -989,7 +989,7 @@ void handle_nr_uci_pucch_2_3_4(module_id_t mod_id, int cell_id, frame_t frame, s
 {
   gNB_MAC_INST *nrmac = RC.nrmac[mod_id];
   NR_SCHED_LOCK(&nrmac->sched_lock);
-  nr_cell_sched_t *cell = &nrmac->cells[cell_id];
+  nr_cell_sched_t *cell = nr_mac_get_cell_by_phy_id(nrmac, cell_id);
 
   NR_UE_info_t *UE = find_nr_UE(&nrmac->UE_info, uci_234->rnti);
   if (!UE) {

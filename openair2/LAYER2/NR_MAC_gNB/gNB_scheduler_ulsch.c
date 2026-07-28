@@ -1038,7 +1038,7 @@ void nr_rx_sdu(const module_id_t gnb_mod_idP,
 {
   gNB_MAC_INST *gNB_mac = RC.nrmac[gnb_mod_idP];
   NR_SCHED_LOCK(&gNB_mac->sched_lock);
-  nr_cell_sched_t *cell = &gNB_mac->cells[CC_idP];
+  nr_cell_sched_t *cell = nr_mac_get_cell_by_phy_id(gNB_mac, CC_idP);
   start_meas(&gNB_mac->rx_ulsch_sdu);
   _nr_rx_sdu(gNB_mac, cell, frameP, slotP, rntiP, sduP, sdu_lenP, harq_pid, timing_advance, ul_cqi, rssi);
   stop_meas(&gNB_mac->rx_ulsch_sdu);
@@ -1486,7 +1486,7 @@ void handle_nr_srs_measurements(const module_id_t module_id,
                                 nfapi_nr_srs_indication_pdu_t *srs_ind)
 {
   gNB_MAC_INST *nrmac = RC.nrmac[module_id];
-  nr_cell_sched_t *cell = &nrmac->cells[cell_id];
+  nr_cell_sched_t *cell = nr_mac_get_cell_by_phy_id(nrmac, cell_id);
   LOG_D(NR_MAC, "(%d.%d) Received SRS indication for UE %04x\n", frame, slot, srs_ind->rnti);
   if (srs_ind->report_type == 0) {
     //SCF 222.10.04 Table 3-129 Report type = 0 means a null report, we can skip unpacking it

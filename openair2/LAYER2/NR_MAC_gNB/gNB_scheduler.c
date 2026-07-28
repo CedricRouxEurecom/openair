@@ -135,7 +135,7 @@ void gNB_dlsch_ulsch_scheduler(module_id_t module_idP, const int cell_id, frame_
   PROTOCOL_CTXT_SET_BY_MODULE_ID(&ctxt, module_idP, ENB_FLAG_YES, NOT_A_RNTI, frame, slot,module_idP);
 
   gNB_MAC_INST *gNB = RC.nrmac[module_idP];
-  nr_cell_sched_t *cell = &gNB->cells[cell_id];
+  nr_cell_sched_t *cell = nr_mac_get_cell_by_phy_id(gNB, cell_id);
   NR_COMMON_channels_t *cc = &cell->common_channels;
   NR_ServingCellConfigCommon_t *scc = cc->ServingCellConfigCommon;
 

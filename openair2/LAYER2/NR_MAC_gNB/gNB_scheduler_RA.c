@@ -673,7 +673,7 @@ void nr_initiate_ra_proc(module_id_t module_idP,
                          uint32_t preamble_power)
 {
   gNB_MAC_INST *nr_mac = RC.nrmac[module_idP];
-  nr_cell_sched_t* cell = &nr_mac->cells[phy_id];
+  nr_cell_sched_t* cell = nr_mac_get_cell_by_phy_id(nr_mac, phy_id);
   NR_SCHED_LOCK(&nr_mac->sched_lock);
   /* check if preamble exists (NSA, HO cases) */
   NR_UE_info_t *UE = get_existing_ra(nr_mac, preamble_index);

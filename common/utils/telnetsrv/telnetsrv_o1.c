@@ -331,7 +331,7 @@ static int set_bwconfig(char *buf, int debug, telnet_printfunc_t prnt)
     ERROR_MSG_RET("unhandled option %s\n", buf);
   }
 
-  nr_cell_sched_t *cell = &RC.nrmac[0]->cells[0];
+  nr_cell_sched_t *cell = nr_mac_get_cell_by_phy_id(RC.nrmac[0], 0);
   free(cell->sched_ctrlSIB1);
   cell->sched_ctrlSIB1 = NULL;
 
