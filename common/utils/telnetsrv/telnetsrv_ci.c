@@ -372,7 +372,9 @@ static int trigger_bwp_switch(char *buf, int debug, telnet_printfunc_t prnt)
   int rnti = fetch_rnti(srnti, prnt);
   if (rnti < 0)
     ERROR_MSG_RET("could not identify UE (no UE, no such RNTI, or multiple UEs)\n");
-  if (!nr_trigger_bwp_switch(rnti, bwpId)) {
+  gNB_MAC_INST *nrmac = RC.nrmac[0];
+  nr_cell_sched_t *cell = &nrmac->cells[0];
+  if (!nr_trigger_bwp_switch(nrmac, cell, rnti, bwpId)) {
     prnt("failed trigger BWP switch for UE %04x BWP ID %d\n", rnti, bwpId);
     return -1;
   } else {

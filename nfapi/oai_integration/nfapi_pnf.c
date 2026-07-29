@@ -1033,8 +1033,7 @@ int nr_config_request(nfapi_pnf_config_t *config, nfapi_pnf_phy_config_t *phy, n
     printf("[PNF] CONFIG_REQUEST[num_tlv:%d] TLVs processed:%d\n", req->num_tlv, num_tlv);
     printf("[PNF] Simulating PHY CONFIG\n");
     NR_PHY_Config_t nr_phy_config;
-    nr_phy_config.Mod_id = 0;
-    nr_phy_config.CC_id = 0;
+    nr_phy_config.phy_id = 0;
     nr_phy_config.cfg = req;
     nr_phy_config_request(&nr_phy_config);
     nr_dump_frame_parms(fp);

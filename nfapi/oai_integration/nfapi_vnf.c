@@ -967,7 +967,7 @@ int phy_nr_slot_indication(nfapi_nr_slot_indication_scf_t *ind)
 int phy_nr_srs_indication(nfapi_nr_srs_indication_t *ind)
 {
   for (int i = 0; i < ind->number_of_pdus; ++i)
-    handle_nr_srs_measurements(0, ind->sfn, ind->slot, &ind->pdu_list[i]);
+    handle_nr_srs_measurements(0, ind->header.phy_id, ind->sfn, ind->slot, &ind->pdu_list[i]);
   return 1;
 }
 
@@ -1417,7 +1417,7 @@ int nr_param_resp_cb(nfapi_vnf_config_t *config, int p5_idx, nfapi_nr_param_resp
   vnf_p7_info *p7_vnf = vnf->p7_vnfs;
   pnf_info *pnf = vnf->pnfs;
   phy_info *phy = pnf->phys;
-  nfapi_nr_config_request_scf_t *req = &RC.nrmac[0]->config[0]; // check
+  nfapi_nr_config_request_scf_t *req = &RC.nrmac[0]->cells[resp->header.phy_id].config; // check
 #ifndef ENABLE_AERIAL
   struct sockaddr_in pnf_p7_sockaddr;
   phy->remote_port = resp->nfapi_config.p7_pnf_port.value;

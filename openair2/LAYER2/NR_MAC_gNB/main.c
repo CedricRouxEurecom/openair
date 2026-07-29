@@ -57,7 +57,7 @@ void *nrmac_stats_thread(void *arg) {
   while (oai_exit == 0) {
     char *p = output;
     NR_SCHED_LOCK(&gNB->sched_lock);
-    p += dump_mac_stats(gNB, p, end - p, false);
+    p += dump_mac_stats(gNB, &gNB->cells[0], p, end - p, false);
     p += snprintf(p, end - p, "\n");
     p += print_meas_log(&gNB->gNB_scheduler, "gNB_scheduler", NULL, NULL, p, end - p);
     p += print_meas_log(&gNB->rx_ulsch_sdu, "rx_ulsch_sdu", NULL, NULL, p, end - p);
@@ -96,7 +96,7 @@ static char *st_append(char *start, const char *end, const char *format, ...)
     return (char *)end;
 }
 
-size_t dump_mac_stats(gNB_MAC_INST *gNB, char *output, size_t strlen, bool reset_rsrp)
+size_t dump_mac_stats(gNB_MAC_INST *gNB, const nr_cell_sched_t *cell, char *output, size_t strlen, bool reset_rsrp)
 {
   const char *begin = output;
   const char *end = output + strlen;
@@ -153,7 +153,7 @@ size_t dump_mac_stats(gNB_MAC_INST *gNB, char *output, size_t strlen, bool reset
                        end,
                        "UE %04x: dlsch_rounds ", UE->rnti);
     output = st_append(output, end, "%"PRIu64, stats->dl.rounds[0]);
-    for (int i = 1; i < gNB->dl_bler.harq_round_max; i++)
+    for (int i = 1; i < cell->dl_bler.harq_round_max; i++)
       output = st_append(output, end, "/%"PRIu64, stats->dl.rounds[i]);
 
     float pucch_snr = nr_mac_get_snr(&sched_ctrl->pucch_pc);
@@ -183,7 +183,7 @@ size_t dump_mac_stats(gNB_MAC_INST *gNB, char *output, size_t strlen, bool reset
                        end,
                        "UE %04x: ulsch_rounds ", UE->rnti);
     output = st_append(output, end, "%"PRIu64, stats->ul.rounds[0]);
-    for (int i = 1; i < gNB->ul_bler.harq_round_max; i++)
+    for (int i = 1; i < cell->ul_bler.harq_round_max; i++)
       output = st_append(output, end, "/%"PRIu64, stats->ul.rounds[i]);
 
     float snr = nr_mac_get_snr(&sched_ctrl->pusch_pc);
@@ -242,7 +242,8 @@ static void mac_rrc_init(gNB_MAC_INST *mac, ngran_node_t node_type)
 void mac_top_init_gNB(ngran_node_t node_type,
                       NR_ServingCellConfigCommon_t *scc,
                       const nr_mac_config_t *config,
-                      const nr_rlc_configuration_t *default_rlc_config)
+                      const nr_rlc_configuration_t *default_rlc_config,
+                      nr_cell_sched_t **cell_ptr)
 {
   AssertFatal(RC.nb_nr_macrlc_inst == 1, "what is the point of calling %s() if you don't need exactly one MAC?\n", __func__);
 
@@ -265,26 +266,29 @@ void mac_top_init_gNB(ngran_node_t node_type,
       LOG_D(MAC,"[MAIN] ALLOCATE %zu Bytes for %d gNB_MAC_INST @ %p\n",sizeof(gNB_MAC_INST), RC.nb_nr_macrlc_inst, RC.mac);
 
       bzero(RC.nrmac[i], sizeof(gNB_MAC_INST));
-      nr_mac_pcch_queue_init(&RC.nrmac[i]->common_channels[0]);
-
+      // TODO: handle multiple cells later, for now there's only one cell ever initialized and used
+      // the current work only adds the structure and updates the references to use the cell pointer
+      *cell_ptr = &RC.nrmac[i]->cells[0];
+      nr_cell_sched_t *cell = *cell_ptr;
+      nr_mac_pcch_queue_init(&cell->common_channels);
       RC.nrmac[i]->Mod_id = i;
 
       RC.nrmac[i]->tag = (NR_TAG_t*)malloc(sizeof(NR_TAG_t));
       memset((void*)RC.nrmac[i]->tag,0,sizeof(NR_TAG_t));
       for(int n = 0; n < MAX_NUM_OF_SSB; n++)
-        RC.nrmac[i]->sib1_pdsch[n].time_domain_allocation = -1;
-      RC.nrmac[i]->common_channels[0].ServingCellConfigCommon = scc;
-      RC.nrmac[i]->radio_config = *config;
+        cell->sib1_pdsch[n].time_domain_allocation = -1;
+      cell->common_channels.ServingCellConfigCommon = scc;
+      cell->radio_config = *config;
       RC.nrmac[i]->rlc_config = *default_rlc_config;
 
-      RC.nrmac[i]->first_MIB = true;
-      RC.nrmac[i]->num_scheduled_prach_rx = 0;
-      RC.nrmac[i]->common_channels[0].mib = get_new_MIB_NR(scc);
+      cell->first_MIB = true;
+      cell->num_scheduled_prach_rx = 0;
+      cell->common_channels.mib = get_new_MIB_NR(scc);
 
-      RC.nrmac[i]->cset0_bwp_start = 0;
-      RC.nrmac[i]->cset0_bwp_size = 0;
+      cell->cset0_bwp_start = 0;
+      cell->cset0_bwp_size = 0;
 
-      RC.nrmac[i]->ul_next = (fsn_t) {.mu = *scc->ssbSubcarrierSpacing};
+      cell->ul_next = (fsn_t) {.mu = *scc->ssbSubcarrierSpacing};
       RC.nrmac[i]->print_ue_stats = true;
 
       pthread_mutex_init(&RC.nrmac[i]->sched_lock, NULL);
@@ -340,11 +344,16 @@ void mac_top_init_gNB(ngran_node_t node_type,
 
 void mac_top_destroy_gNB(gNB_MAC_INST *mac)
 {
-  NR_COMMON_channels_t *cc = &mac->common_channels[0];
-  nr_mac_pcch_queue_free(cc);
-  ASN_STRUCT_FREE(asn_DEF_NR_BCCH_BCH_Message, cc->mib);
-  ASN_STRUCT_FREE(asn_DEF_NR_BCCH_DL_SCH_Message, cc->sib1);
-  ASN_STRUCT_FREE(asn_DEF_NR_ServingCellConfigCommon, cc->ServingCellConfigCommon);
+  for (size_t i = 0; i < sizeofArray(mac->cells); i++) {
+    nr_cell_sched_t *cell = &mac->cells[i];
+    if (cell->common_channels.ServingCellConfigCommon == NULL)
+      continue;
+    NR_COMMON_channels_t *cc = &cell->common_channels;
+    nr_mac_pcch_queue_free(cc);
+    ASN_STRUCT_FREE(asn_DEF_NR_BCCH_BCH_Message, cc->mib);
+    ASN_STRUCT_FREE(asn_DEF_NR_BCCH_DL_SCH_Message, cc->sib1);
+    ASN_STRUCT_FREE(asn_DEF_NR_ServingCellConfigCommon, cc->ServingCellConfigCommon);
+  }
   NR_UEs_t *UE_info = &mac->UE_info;
   for (int i = 0; i < sizeofArray(UE_info->connected_ue_list); ++i)
     if (UE_info->connected_ue_list[i])

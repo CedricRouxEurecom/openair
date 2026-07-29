@@ -175,8 +175,9 @@ static int create_gNB_tasks(ngran_node_t node_type, configmodule_interface_t *cf
 
   RCconfig_verify(cfg, node_type);
 
+  nr_cell_sched_t *cell = NULL; // This is still assuming RC.nb_nr_macrlc_inst is always 1, need to find a better way when RC.nb_nr_macrlc_inst is > 1
   if (RC.nb_nr_macrlc_inst > 0)
-    RCconfig_nr_macrlc(cfg);
+    RCconfig_nr_macrlc(cfg, &cell);
 
   if (RC.nb_nr_L1_inst > 0) {
     int ret = l1_north_init_gNB();
@@ -400,7 +401,7 @@ int stop_L1(module_id_t gnb_id)
  * Restart the nr-softmodem after it has been soft-stopped with stop_L1L2()
  */
 #include "openair2/LAYER2/NR_MAC_gNB/mac_proto.h"
-int start_L1L2(module_id_t gnb_id)
+int start_L1L2(module_id_t gnb_id, nr_cell_sched_t *cell)
 {
   LOG_I(GNB_APP, "starting nr-softmodem\n");
   /* block threads */
@@ -408,12 +409,12 @@ int start_L1L2(module_id_t gnb_id)
   sync_var = -1;
 
   /* update config */
-  gNB_MAC_INST *mac = RC.nrmac[0];
-  NR_ServingCellConfigCommon_t *scc = mac->common_channels[0].ServingCellConfigCommon;
-  nr_mac_config_scc(mac, scc, &mac->radio_config);
+  gNB_MAC_INST *mac = RC.nrmac[gnb_id];
+  NR_ServingCellConfigCommon_t *scc = cell->common_channels.ServingCellConfigCommon;
+  nr_mac_config_scc(mac, cell, scc, &cell->radio_config);
 
-  NR_BCCH_BCH_Message_t *mib = mac->common_channels[0].mib;
-  const NR_BCCH_DL_SCH_Message_t *sib1 = mac->common_channels[0].sib1;
+  NR_BCCH_BCH_Message_t *mib = cell->common_channels.mib;
+  const NR_BCCH_DL_SCH_Message_t *sib1 = cell->common_channels.sib1;
   f1ap_setup_req_t *sr = mac->f1_config.setup_req;
   DevAssert(sr->num_cells_available == 1);
   f1ap_served_cell_info_t *info = &sr->cell[0].info;
