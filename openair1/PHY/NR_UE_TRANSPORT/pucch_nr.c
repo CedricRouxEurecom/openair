@@ -96,7 +96,7 @@ void nr_generate_pucch0(c16_t **txdataF,
                                                  pucch_pdu->start_symbol_index,
                                                  nr_slot_tx);
     int l2 = l + pucch_pdu->start_symbol_index;
-    int re_offset = CIRCULAR_INC(frame_parms->first_carrier_offset, 12 * prb_offset[l], frame_parms->ofdm_symbol_size);
+    int re_offset = CIRCULAR_INC(frame_parms->first_carrier_offset, NR_NB_SC_PER_RB * prb_offset[l], frame_parms->ofdm_symbol_size);
 
     //txptr = &txdataF[0][re_offset];
 #ifdef DEBUG_NR_PUCCH_TX

@@ -102,7 +102,7 @@ int nr_prs_channel_estimation(uint8_t gNB_id,
   char filename[64] = {0}, varname[64] = {0};
 #endif
   const int scale_factor = (1.0f / (float)(prs_cfg->NumPRSSymbols)) * (1 << 15);
-  const int num_pilots = (12 / CombSize) * prs_cfg->NumRB;
+  const int num_pilots = (NR_NB_SC_PER_RB / CombSize) * prs_cfg->NumRB;
 
   for (int l = prs_cfg->SymbolStart; l < prs_cfg->SymbolStart + prs_cfg->NumPRSSymbols; l++) {
     c16_t *ch_tmp = ch_tmp_buf;
@@ -156,7 +156,7 @@ int nr_prs_channel_estimation(uint8_t gNB_id,
 
       // calculate RE offset
       int k = CIRCULAR_INC(frame_parms->first_carrier_offset,
-                           (prs_cfg->REOffset + k_prime) % CombSize + prs_cfg->RBOffset * 12,
+                           (prs_cfg->REOffset + k_prime) % CombSize + prs_cfg->RBOffset * NR_NB_SC_PER_RB,
                            symb_sz);
 
       // Channel estimation and interpolation
@@ -370,7 +370,7 @@ int nr_prs_channel_estimation(uint8_t gNB_id,
       memset(chF_interpol, 0, sizeof(chF_interpol));
       // Place PRS channel estimates in FFT shifted format
       const int first_half = symb_sz - frame_parms->first_carrier_offset;
-      const int second_half = prs_cfg->NumRB * 12 - first_half;
+      const int second_half = prs_cfg->NumRB * NR_NB_SC_PER_RB - first_half;
       const int start_offset = NR_PRS_IDFT_OVERSAMP_FACTOR * symb_sz - first_half;
       LOG_D(PHY, "start_offset %d, first_half %d, second_half %d\n", start_offset, first_half, second_half);
       if (first_half > 0)
@@ -382,7 +382,7 @@ int nr_prs_channel_estimation(uint8_t gNB_id,
       freq2time(NR_PRS_IDFT_OVERSAMP_FACTOR * symb_sz, (int16_t *)chF_interpol, (int16_t *)chT_interpol);
     }
     // peak estimator
-    int mean_val = squaredMod(ch_tmp_buf[(prs_cfg->NumRB * 12) >> 1]);
+    int mean_val = squaredMod(ch_tmp_buf[(prs_cfg->NumRB * NR_NB_SC_PER_RB) >> 1]);
     int prs_toa, ch_pwr;
     peak_estimator(chT_interpol, NR_PRS_IDFT_OVERSAMP_FACTOR * symb_sz, &prs_toa, &ch_pwr, mean_val);
     openair0_config_t *cfg = &openair0_cfg_g[ue->rf_map.card];
@@ -704,7 +704,8 @@ void nr_pdcch_channel_estimation(const NR_DL_FRAME_PARMS *frame_parms,
          first_carrier_offset, BWPStart, coreset_start_rb, nb_rb_coreset);
 #endif
 
-  unsigned short coreset_start_subcarrier = (first_carrier_offset + (BWPStart + coreset_start_rb) * 12) % symb_sz;
+  unsigned short coreset_start_subcarrier =
+      CIRCULAR_INC(first_carrier_offset, (BWPStart + coreset_start_rb) * NR_NB_SC_PER_RB, symb_sz);
 
 #if CH_INTERP
   int16_t *fl = filt16a_l1;
@@ -793,7 +794,7 @@ static void NFAPI_NR_DMRS_TYPE1_linear_interp(const NR_DL_FRAME_PARMS *frame_par
   while (find_next_rb_block(freq_alloc->bitmap, bwpsize, &pos, &block_start, &block_end)) {
     int skipped_rbs = block_start - last_processed_rb;
     pil += skipped_rbs * 6;
-    re_offset = CIRCULAR_INC(re_offset, skipped_rbs * 12, symb_sz);
+    re_offset = CIRCULAR_INC(re_offset, skipped_rbs * NR_NB_SC_PER_RB, symb_sz);
     for (int rb = block_start; rb <= block_end; rb++) {
       for (int pilot_cnt = 0; pilot_cnt < 6; pilot_cnt += 2) {
         c16_t ch_l = c16mulShift(*pil, rxF[re_offset], 15);
@@ -960,7 +961,7 @@ static void NFAPI_NR_DMRS_TYPE2_linear_interp(const NR_DL_FRAME_PARMS *frame_par
   while (find_next_rb_block(freq_alloc->bitmap, bwpsize, &pos, &block_start, &block_end)) {
     int skipped_rbs = block_start - last_processed_rb;
     pil += skipped_rbs * 4;
-    re_offset = CIRCULAR_INC(re_offset, skipped_rbs * 12, symb_sz);
+    re_offset = CIRCULAR_INC(re_offset, skipped_rbs * NR_NB_SC_PER_RB, symb_sz);
     for (int rb = block_start; rb <= block_end; rb++) {
       for (int pilot_cnt = 0; pilot_cnt < 4; pilot_cnt += 2) {
         c16_t ch_l = c16mulShift(*pil, rxF[re_offset], 15);
@@ -1126,7 +1127,7 @@ void nr_pdsch_channel_estimation(PHY_VARS_NR_UE *ue,
   const NR_DL_FRAME_PARMS *frame_parms = &ue->frame_parms;
   const int ch_offset = symb_sz * symbol;
   const int symbol_offset = symb_sz * symbol;
-  const int bwp_start_subcarrier = frame_parms->first_carrier_offset + (dlsch->BWPStart + freq_alloc->first_rb) * 12;
+  const int bwp_start_subcarrier = frame_parms->first_carrier_offset + (dlsch->BWPStart + freq_alloc->first_rb) * NR_NB_SC_PER_RB;
 
 #ifdef DEBUG_PDSCH
   printf(

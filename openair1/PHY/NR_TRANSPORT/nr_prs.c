@@ -30,12 +30,12 @@ int nr_generate_prs(int slot, c16_t *txdataF, int16_t amp, prs_config_t *prs_cfg
       k_prime = k_prime_table[3][symInd];
     }
 
-    int k = (prs_cfg->REOffset + k_prime) % prs_cfg->CombSize + prs_cfg->RBOffset * 12;
+    int k = (prs_cfg->REOffset + k_prime) % prs_cfg->CombSize + prs_cfg->RBOffset * NR_NB_SC_PER_RB;
 
     // QPSK modulation
     uint32_t *gold = nr_gold_prs(prs_cfg->NPRSID, slot, l);
     c16_t *tx = txdataF + l * frame_parms->ofdm_symbol_size;
-    for (int m = 0; m < (12/prs_cfg->CombSize) * prs_cfg->NumRB; m++) {
+    for (int m = 0; m < (NR_NB_SC_PER_RB / prs_cfg->CombSize) * prs_cfg->NumRB; m++) {
       int idx = (((gold[(m << 1) >> 5]) >> ((m << 1) & 0x1f)) & 3);
 #ifdef DEBUG_PRS_MAP
       LOG_D("m %d at k %d of l %d reIdx %d\n", m, k, l, (l*frame_parms->ofdm_symbol_size + k)<<1);
