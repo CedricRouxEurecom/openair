@@ -1091,29 +1091,15 @@ bool nr_mac_configure_other_sib(nr_cell_sched_t *cell, int num_cu_sib, const f1a
   return true;
 }
 
-bool nr_update_sib19(const gnb_sat_position_update_t *sat_position)
+static void nr_update_sib19_cell(nr_cell_sched_t *cell, const gnb_sat_position_update_t *sat_position)
 {
-  gNB_MAC_INST *nrmac = RC.nrmac[0];
-  NR_COMMON_channels_t *cc = &nrmac->cells[0].common_channels;
+  NR_COMMON_channels_t *cc = &cell->common_channels;
   NR_ServingCellConfigCommon_t *scc = cc->ServingCellConfigCommon;
-
-  if (!scc || !scc->ext2 || !scc->ext2->ntn_Config_r17)
-    return false;
-
   const vector_t *pos = &sat_position->position;
   const vector_t *vel = &sat_position->velocity;
 
-  LOG_D(NR_MAC, "SFN = %d, SubFrame = %d\n", sat_position->sfn, sat_position->subframe);
-  LOG_D(NR_MAC, "TA_Common: value %d, %f msec\n", sat_position->delay, sat_position->delay * 4.072e-6);
-  LOG_D(NR_MAC, "TA_CommonDrift: value %d, = %f µsec/sec\n", sat_position->drift, sat_position->drift * 0.2e-3);
-  LOG_D(NR_MAC, "TA_CommonDriftVariant: value %d, %f µsec/sec^2\n", sat_position->accel, sat_position->accel * 0.2e-4);
-  LOG_D(NR_MAC, "SAT Position: values %d/%d/%d, %.3f/%3f/%3f metres in X/Y/Z\n", pos->X, pos->Y, pos->Z, pos->X * 1.3, pos->Y * 1.3, pos->Z * 1.3);
-  LOG_D(NR_MAC, "SAT Velocity: values %d/%d/%d, %.3f/%3f/%3f m/s in X/Y/Z\n", vel->X, vel->Y, vel->Z, vel->X * 0.06, vel->Y * 0.06, vel->Z * 0.06);
-
-  NR_SCHED_LOCK(&nrmac->sched_lock);
-
   if (!scc->ext2->ntn_Config_r17->epochTime_r17)
-    scc->ext2->ntn_Config_r17->epochTime_r17 = calloc (1, sizeof(*scc->ext2->ntn_Config_r17->epochTime_r17));
+    scc->ext2->ntn_Config_r17->epochTime_r17 = calloc(1, sizeof(*scc->ext2->ntn_Config_r17->epochTime_r17));
 
   NR_EpochTime_r17_t *epoch_time_r17 = scc->ext2->ntn_Config_r17->epochTime_r17;
   epoch_time_r17->sfn_r17 = sat_position->sfn;
@@ -1175,10 +1161,35 @@ bool nr_update_sib19(const gnb_sat_position_update_t *sat_position)
   cc->other_sib_bcch_length[1] = encode_sysinfo_ie(sysInfov17, cc->other_sib_bcch_pdu[1], sizeof(cc->other_sib_bcch_pdu[1]));
   AssertFatal(cc->other_sib_bcch_length[1] > 0, "could not encode SIB19\n");
   ASN_STRUCT_FREE(asn_DEF_NR_SystemInformation_IEs, sysInfov17);
+}
 
+bool nr_update_sib19(const gnb_sat_position_update_t *sat_position)
+{
+  gNB_MAC_INST *nrmac = RC.nrmac[0];
+  AssertFatal(nrmac != NULL, "no MAC instance\n");
+
+  const vector_t *pos = &sat_position->position;
+  const vector_t *vel = &sat_position->velocity;
+
+  LOG_D(NR_MAC, "SFN = %d, SubFrame = %d\n", sat_position->sfn, sat_position->subframe);
+  LOG_D(NR_MAC, "TA_Common: value %d, %f msec\n", sat_position->delay, sat_position->delay * 4.072e-6);
+  LOG_D(NR_MAC, "TA_CommonDrift: value %d, = %f µsec/sec\n", sat_position->drift, sat_position->drift * 0.2e-3);
+  LOG_D(NR_MAC, "TA_CommonDriftVariant: value %d, %f µsec/sec^2\n", sat_position->accel, sat_position->accel * 0.2e-4);
+  LOG_D(NR_MAC, "SAT Position: values %d/%d/%d, %.3f/%3f/%3f metres in X/Y/Z\n", pos->X, pos->Y, pos->Z, pos->X * 1.3, pos->Y * 1.3, pos->Z * 1.3);
+  LOG_D(NR_MAC, "SAT Velocity: values %d/%d/%d, %.3f/%3f/%3f m/s in X/Y/Z\n", vel->X, vel->Y, vel->Z, vel->X * 0.06, vel->Y * 0.06, vel->Z * 0.06);
+
+  NR_SCHED_LOCK(&nrmac->sched_lock);
+  bool updated = false;
+  for (int i = 0; i < NR_MAX_CELLS; i++) {
+    nr_cell_sched_t *cell = &nrmac->cells[i];
+    NR_ServingCellConfigCommon_t *scc = cell->common_channels.ServingCellConfigCommon;
+    if (!scc || !scc->ext2 || !scc->ext2->ntn_Config_r17)
+      continue;
+    nr_update_sib19_cell(cell, sat_position);
+    updated = true;
+  }
   NR_SCHED_UNLOCK(&nrmac->sched_lock);
-
-  return true;
+  return updated;
 }
 // TODO: ask Robert where this is used, and if it's okay to change, I can't find references
 bool nr_trigger_bwp_switch(gNB_MAC_INST *nrmac,nr_cell_sched_t *cell, uint16_t rnti, int bwp_id)
