@@ -187,7 +187,9 @@ bool fapi_nr_message_header_unpack(void *pMessageBuf,
   uint8_t *end = pMessageBuf + messageBufLen;
   // process the header
   int result =
-      (pull8(&pReadPackedMessage, &fapi_msg.num_msg, end) && pull8(&pReadPackedMessage, (uint8_t *)&header->phy_id, end)
+      (pull8(&pReadPackedMessage, &fapi_msg.num_msg, end) && pull8(&pReadPackedMessage, &fapi_msg.opaque_handle, end)
        && pull16(&pReadPackedMessage, &header->message_id, end) && pull32(&pReadPackedMessage, &header->message_length, end));
+  // the SCF opaque handle byte carries the phy_id
+  header->phy_id = fapi_msg.opaque_handle;
   return result != 0;
 }

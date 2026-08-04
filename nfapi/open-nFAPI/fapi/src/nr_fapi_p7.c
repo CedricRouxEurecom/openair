@@ -129,7 +129,6 @@ bool fapi_nr_p7_message_unpack(void *pMessageBuf,
 {
   int result = 0;
   nfapi_nr_p7_message_header_t *pMessageHeader = (nfapi_nr_p7_message_header_t *)pUnpackedBuf;
-  fapi_message_header_t fapi_hdr;
   AssertFatal(pMessageBuf != NULL && pUnpackedBuf != NULL, "P7 unpack supplied pointers are null");
 
   AssertFatal(messageBufLen >= NFAPI_HEADER_LENGTH && unpackedBufLen >= sizeof(fapi_message_header_t),
@@ -137,14 +136,12 @@ bool fapi_nr_p7_message_unpack(void *pMessageBuf,
               messageBufLen,
               unpackedBufLen);
 
-  if (!fapi_nr_message_header_unpack(pMessageBuf, NFAPI_HEADER_LENGTH, &fapi_hdr, sizeof(fapi_message_header_t), 0)) {
+  if (!fapi_nr_message_header_unpack(pMessageBuf, NFAPI_HEADER_LENGTH, pMessageHeader, sizeof(fapi_message_header_t), 0)) {
     // failed to read the header
     return false;
   }
   uint8_t *pReadPackedMessage = pMessageBuf + NFAPI_HEADER_LENGTH;
   uint8_t *end = (uint8_t *)pMessageBuf + messageBufLen;
-  pMessageHeader->message_length = fapi_hdr.message_length;
-  pMessageHeader->message_id = fapi_hdr.message_id;
   if ((uint8_t *)(pMessageBuf + pMessageHeader->message_length) > end) {
     NFAPI_TRACE(NFAPI_TRACE_ERROR, "P7 unpack message length is greater than the message buffer \n");
     return false;

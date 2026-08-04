@@ -86,6 +86,12 @@ static int ipc_handle_rx_msg(nv_ipc_msg_t *msg)
       return -1;
     }
 
+    // use transport-level cell_id (0-based) from the nvIPC header —
+    // the opaque handle (phy_id) is not reliably populated by cuBB in incoming messages;
+    // stamp it into the packed header so downstream unpackers can rely on it
+    uint8_t phy_id = msg->cell_id;
+    AssertFatal(phy_id < NFAPI_PHY_MAX, "phy_id %d exceeds NFAPI_PHY_MAX %d\n", phy_id, NFAPI_PHY_MAX);
+    ((uint8_t *)msg->msg_buf)[1] = phy_id;
    vnf_p7_t *vnf_p7_config = (vnf_p7_t *)((vnf_info *)vnf_config->user_data)->p7_vnfs->config;
     switch (fapi_msg.message_id) {
       case NFAPI_NR_PHY_MSG_TYPE_PARAM_RESPONSE ... NFAPI_NR_PHY_MSG_TYPE_ERROR_INDICATION:
@@ -97,6 +103,7 @@ static int ipc_handle_rx_msg(nv_ipc_msg_t *msg)
         int dataBufLen = msg->data_len;
         uint8_t *data_end = msg->data_buf + dataBufLen;
         nfapi_nr_rx_data_indication_t ind;
+        ind.header.phy_id = phy_id;
         ind.header.message_id = fapi_msg.message_id;
         ind.header.message_length = fapi_msg.message_length;
         aerial_unpack_nr_rx_data_indication(
@@ -122,6 +129,7 @@ static int ipc_handle_rx_msg(nv_ipc_msg_t *msg)
         int dataBufLen = msg->data_len;
         uint8_t *data_end = msg->data_buf + dataBufLen;
         nfapi_nr_srs_indication_t ind;
+        ind.header.phy_id = phy_id;
         aerial_unpack_nr_srs_indication(&pReadPackedMessage, end, &pReadData, data_end, &ind);
         if (vnf_p7_config->_public.nr_srs_indication) {
           (vnf_p7_config->_public.nr_srs_indication)(&ind);
@@ -135,11 +143,6 @@ static int ipc_handle_rx_msg(nv_ipc_msg_t *msg)
           NFAPI_TRACE(NFAPI_TRACE_ERROR, "%s: Failed to unpack message\n", __FUNCTION__);
         } else {
           NFAPI_TRACE(NFAPI_TRACE_DEBUG, "%s: Handling NR SLOT Indication\n", __FUNCTION__);
-          // use transport-level cell_id (0-based) from the nvIPC header —
-          // ind.header.phy_id is not reliably populated by cuBB in incoming messages;
-          // normalize it here so downstream callbacks can rely on it
-          uint8_t phy_id = msg->cell_id;
-          AssertFatal(phy_id < NFAPI_PHY_MAX, "phy_id %d exceeds NFAPI_PHY_MAX %d\n", phy_id, NFAPI_PHY_MAX);
           ind.header.phy_id = phy_id;
           // check if the sfn/slot unpacked come wrong at any time, should be old + 1 (slot 0 -- 19, sfn 0 -- 1023)
           uint16_t old_slot_plus = ((old_slot[phy_id] + 1) % 20);

@@ -11,6 +11,14 @@ foreach (fapi_p7_message IN LISTS _fapi_p7_messages)
     add_test(nr_fapi_${fapi_p7_message}_test nr_fapi_${fapi_p7_message}_test)
     set_tests_properties(nr_fapi_${fapi_p7_message}_test PROPERTIES LABELS "${Test_Labels}")
 endforeach ()
+add_executable(nr_fapi_p7_phy_id_test nr_fapi_p7_phy_id_test.c)
+target_link_libraries(nr_fapi_p7_phy_id_test PUBLIC nr_fapi_p7)
+target_link_libraries(nr_fapi_p7_phy_id_test PRIVATE pthread UTIL ${T_LIB} minimal_lib)
+add_dependencies(tests nr_fapi_p7_phy_id_test)
+
+add_test(nr_fapi_p7_phy_id_test nr_fapi_p7_phy_id_test)
+set_tests_properties(nr_fapi_p7_phy_id_test PROPERTIES LABELS "${Test_Labels}")
+
 # Add the dci label for the dci payload test
 set(dci_labels dci ${Test_Labels})
 set_tests_properties(nr_fapi_dci_inversion_test PROPERTIES LABELS "dci ${Test_Labels}")
