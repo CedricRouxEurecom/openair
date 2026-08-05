@@ -8,6 +8,7 @@
 #include <stdbool.h>
 #include <signal.h>
 #include <errno.h>
+#include <string.h>
 
 #include "T.h"
 #include "common/oai_version.h"
@@ -138,6 +139,67 @@ static void get_options(configmodule_interface_t *cfg)
   config_get(cfg, cmdline_params, numparams, NULL);
   AssertFatal(nrUE_params.extra_pdu_id == -1,
               "Add additional PDU sessions in uicc.pdu_sessions array instead\n");
+}
+
+/* Parse --actor-cores into cores[]. Returns number of cores. Empty/NULL -> 0. */
+static int parse_actor_cores(const char *params, int *cores, int max_cores)
+{
+  if (params == NULL || params[0] == '\0')
+    return 0;
+
+  char *cpy = strdup(params);
+  AssertFatal(cpy != NULL, "Memory exhausted\n");
+  int n = 0;
+  char *saveptr = NULL;
+  for (char *tok = strtok_r(cpy, ",", &saveptr); tok != NULL; tok = strtok_r(NULL, ",", &saveptr)) {
+    AssertFatal(n < max_cores, "actor-cores has more than %d entries\n", max_cores);
+    cores[n++] = atoi(tok);
+  }
+  free(cpy);
+  return n;
+}
+
+/* Assign one core from the shared pool to each DL actor, then each UL actor.
+ * If a spare remains, pin SYNC too. Leave everyone at -1 when actor-cores is unset. */
+static void init_ue_actors(PHY_VARS_NR_UE *UE)
+{
+  const nrUE_params_t *p = get_nrUE_params();
+  const int need = p->num_dl_actors + p->num_ul_actors;
+  int cores[64];
+  const int have = parse_actor_cores(p->actor_cores, cores, sizeofArray(cores));
+  AssertFatal(have == 0 || have >= need,
+              "actor-cores has %d entries but needs at least num-dl-actors (%d) + num-ul-actors (%d) = %d\n",
+              have,
+              p->num_dl_actors,
+              p->num_ul_actors,
+              need);
+
+  int idx = 0;
+  const int sync_core = (have > need) ? cores[need] : -1;
+  init_actor(&UE->sync_actor, "SYNC_", sync_core);
+
+  if (p->num_dl_actors > 0) {
+    UE->dl_actors = calloc_or_fail(p->num_dl_actors, sizeof(*UE->dl_actors));
+    for (int i = 0; i < p->num_dl_actors; i++) {
+      const int core = (have > 0) ? cores[idx++] : -1;
+      init_actor(&UE->dl_actors[i], "DL_", core);
+    }
+  }
+  if (p->num_ul_actors > 0) {
+    UE->ul_actors = calloc_or_fail(p->num_ul_actors, sizeof(*UE->ul_actors));
+    for (int i = 0; i < p->num_ul_actors; i++) {
+      const int core = (have > 0) ? cores[idx++] : -1;
+      init_actor(&UE->ul_actors[i], "UL_", core);
+    }
+  }
+  if (have > 0)
+    LOG_I(PHY,
+          "Pinned actors from actor-cores=%s (DL %d, UL %d, SYNC %d)%s\n",
+          p->actor_cores,
+          p->num_dl_actors,
+          p->num_ul_actors,
+          sync_core,
+          have > need + 1 ? " (extra cores unused)" : "");
 }
 
 // set PHY vars from command line
@@ -373,19 +435,7 @@ int main(int argc, char **argv)
       mac->dl_frequency = cell.rf_frequency;
 
       UE_CC->sl_mode = get_softmodem_params()->sl_mode;
-      init_actor(&UE_CC->sync_actor, "SYNC_", -1);
-      if (get_nrUE_params()->num_dl_actors > 0) {
-        UE_CC->dl_actors = calloc_or_fail(get_nrUE_params()->num_dl_actors, sizeof(*UE_CC->dl_actors));
-        for (int i = 0; i < get_nrUE_params()->num_dl_actors; i++) {
-          init_actor(&UE_CC->dl_actors[i], "DL_", -1);
-        }
-      }
-      if (get_nrUE_params()->num_ul_actors > 0) {
-        UE_CC->ul_actors = calloc_or_fail(get_nrUE_params()->num_ul_actors, sizeof(*UE_CC->ul_actors));
-        for (int i = 0; i < get_nrUE_params()->num_ul_actors; i++) {
-          init_actor(&UE_CC->ul_actors[i], "UL_", -1);
-        }
-      }
+      init_ue_actors(UE_CC);
       init_nr_ue_vars(UE_CC, inst);
 
       if (UE_CC->sl_mode) {

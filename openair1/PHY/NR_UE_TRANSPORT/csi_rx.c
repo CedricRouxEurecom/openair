@@ -1009,21 +1009,21 @@ void nr_ue_csi_rs_procedures(PHY_VARS_NR_UE *ue,
   switch (csirs_config_pdu->measurement_bitmap) {
     case 0:
       if (do_trs_est)
-        LOG_I(NR_PHY,
+        LOG_D(NR_PHY,
               "%d.%d TRS estimated CFO: %d Hz\n",
               proc->frame_rx,
               proc->nr_slot_rx,
               trs_cfo);
       break;
     case 1:
-      LOG_I(NR_PHY, "%d.%d [UE %d] RSRP = %i dBm\n", proc->frame_rx, proc->nr_slot_rx, ue->Mod_id, rsrp_dBm);
+      LOG_D(NR_PHY, "%d.%d [UE %d] RSRP = %i dBm\n", proc->frame_rx, proc->nr_slot_rx, ue->Mod_id, rsrp_dBm);
       break;
     case 26 :
-      LOG_I(NR_PHY, "RI = %i i1 = %i.%i.%i, i2 = %i, SINR = %i dB, CQI = %i\n",
+      LOG_D(NR_PHY, "RI = %i i1 = %i.%i.%i, i2 = %i, SINR = %i dB, CQI = %i\n",
             rank_indicator + 1, i1[0], i1[1], i1[2], i2[0], precoded_sinr_dB, cqi);
       break;
     case 27 :
-      LOG_I(NR_PHY, "RSRP = %i dBm, RI = %i i1 = %i.%i.%i, i2 = %i, SINR = %i dB, CQI = %i\n",
+      LOG_D(NR_PHY, "RSRP = %i dBm, RI = %i i1 = %i.%i.%i, i2 = %i, SINR = %i dB, CQI = %i\n",
             rsrp_dBm, rank_indicator + 1, i1[0], i1[1], i1[2], i2[0], precoded_sinr_dB, cqi);
       break;
     default :

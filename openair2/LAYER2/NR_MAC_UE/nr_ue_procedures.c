@@ -765,6 +765,24 @@ static bool get_cw_info(NR_UE_DL_HARQ_STATUS_t *current_harq,
   return true;
 }
 
+/* Counterpart of the UL accumulation in nr_ue_dl_scheduler(), so that the DL line of
+ * print_ue_mac_stats() can report the same averages. Weighted by TBS like the UL side, and
+ * accumulated on every grant including retransmissions so the per-TB averages divide by the
+ * same round total the print uses. */
+static void accumulate_dl_stats(NR_UE_MAC_INST_t *mac,
+                                const fapi_nr_dl_config_dlsch_pdu_rel15_t *dlsch_pdu,
+                                const fapi_nr_dl_cw_info_t *cw_info,
+                                int number_rbs)
+{
+  int bits = cw_info->TBS;
+  mac->stats.dl.total_bits += bits;
+  mac->stats.dl.target_code_rate += (uint64_t)cw_info->targetCodeRate * bits;
+  if (cw_info->qamModOrder)
+    mac->stats.dl.total_symbols += bits / cw_info->qamModOrder;
+  mac->stats.dl.rb_size += number_rbs;
+  mac->stats.dl.nr_of_symbols += dlsch_pdu->number_symbols;
+}
+
 static int nr_ue_process_dci_dl_10_p_rnti(NR_UE_MAC_INST_t *mac,
                                           frame_t frame,
                                           int slot,
@@ -1475,6 +1493,7 @@ static int nr_ue_process_dci_dl_11(NR_UE_MAC_INST_t *mac,
                     cw_idx)) {
       if (current_harq->round < sizeofArray(mac->stats.dl.rounds))
         mac->stats.dl.rounds[current_harq->round]++;
+      accumulate_dl_stats(mac, dlsch_pdu, &dlsch_pdu->cw_info[0], number_rbs);
       // set the harq status at MAC for feedback
       set_harq_status(mac,
                       dci->pucch_resource_indicator,
@@ -1507,6 +1526,7 @@ static int nr_ue_process_dci_dl_11(NR_UE_MAC_INST_t *mac,
                     cw_idx)) {
       if (current_harq->round < sizeofArray(mac->stats.dl.rounds))
         mac->stats.dl.rounds[current_harq->round]++;
+      accumulate_dl_stats(mac, dlsch_pdu, &dlsch_pdu->cw_info[1], number_rbs);
       // set the harq status at MAC for feedback
       set_harq_status(mac,
                       dci->pucch_resource_indicator,
