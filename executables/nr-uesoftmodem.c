@@ -141,8 +141,8 @@ static void get_options(configmodule_interface_t *cfg)
               "Add additional PDU sessions in uicc.pdu_sessions array instead\n");
 }
 
-/* Parse --actor-cores into cores[]. Returns number of cores. Empty/NULL -> 0. */
-static int parse_actor_cores(const char *params, int *cores, int max_cores)
+/* Parse --actor-affinity into cores[]. Returns number of cores. Empty/NULL -> 0. */
+static int parse_actor_affinity(const char *params, int *cores, int max_cores)
 {
   if (params == NULL || params[0] == '\0')
     return 0;
@@ -152,7 +152,7 @@ static int parse_actor_cores(const char *params, int *cores, int max_cores)
   int n = 0;
   char *saveptr = NULL;
   for (char *tok = strtok_r(cpy, ",", &saveptr); tok != NULL; tok = strtok_r(NULL, ",", &saveptr)) {
-    AssertFatal(n < max_cores, "actor-cores has more than %d entries\n", max_cores);
+    AssertFatal(n < max_cores, "actor-affinity has more than %d entries\n", max_cores);
     cores[n++] = atoi(tok);
   }
   free(cpy);
@@ -160,15 +160,15 @@ static int parse_actor_cores(const char *params, int *cores, int max_cores)
 }
 
 /* Assign one core from the shared pool to each DL actor, then each UL actor.
- * If a spare remains, pin SYNC too. Leave everyone at -1 when actor-cores is unset. */
+ * If a spare remains, pin SYNC too. Leave everyone at -1 when actor-affinity is unset. */
 static void init_ue_actors(PHY_VARS_NR_UE *UE)
 {
   const nrUE_params_t *p = get_nrUE_params();
   const int need = p->num_dl_actors + p->num_ul_actors;
   int cores[64];
-  const int have = parse_actor_cores(p->actor_cores, cores, sizeofArray(cores));
+  const int have = parse_actor_affinity(p->actor_affinity, cores, sizeofArray(cores));
   AssertFatal(have == 0 || have >= need,
-              "actor-cores has %d entries but needs at least num-dl-actors (%d) + num-ul-actors (%d) = %d\n",
+              "actor-affinity has %d entries but needs at least num-dl-actors (%d) + num-ul-actors (%d) = %d\n",
               have,
               p->num_dl_actors,
               p->num_ul_actors,
@@ -194,8 +194,8 @@ static void init_ue_actors(PHY_VARS_NR_UE *UE)
   }
   if (have > 0)
     LOG_I(PHY,
-          "Pinned actors from actor-cores=%s (DL %d, UL %d, SYNC %d)%s\n",
-          p->actor_cores,
+          "Pinned actors from actor-affinity=%s (DL %d, UL %d, SYNC %d)%s\n",
+          p->actor_affinity,
           p->num_dl_actors,
           p->num_ul_actors,
           sync_core,
