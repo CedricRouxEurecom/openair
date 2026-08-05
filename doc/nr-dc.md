@@ -30,7 +30,7 @@ For O-RAN 7.2 RUs, ensure that you use the same PTP clock for both units.
 
 For USRP-based setups (for example, the FR1 DU is using a B210 and the FR2
 DU is using an X410 connected to an Interdigital MHU) you need to set the
-following in the `Rus` section for both units:
+following in the `RUs` section for both units:
 
 ```
          clock_src = "external";
