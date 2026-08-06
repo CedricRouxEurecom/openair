@@ -140,14 +140,12 @@ static void nr_pdcp_entity_recv_pdu(nr_pdcp_entity_t *entity,
 
   if (rcvd_count < entity->rx_deliv
       || nr_pdcp_sdu_in_list(entity->rx_list, rcvd_count)) {
-    static unsigned int discard_log_count = 0;
-    if (discard_log_count++ % 1000 == 0) //Rate limit
-      LOG_W(PDCP,
-            "discard NR PDU rcvd_count=%d, entity->rx_deliv %d, sdu_in_list %d (%u times)\n",
-            rcvd_count,
-            entity->rx_deliv,
-            nr_pdcp_sdu_in_list(entity->rx_list, rcvd_count),
-            discard_log_count);
+    if (entity->pdu_discarded != 0 && entity->t_current > entity->t_log_pdu_discard + 1000) {
+      LOG_W(PDCP, "%d NR PDU discarded (rcvd_count < rx_deliv or duplicate)\n", entity->pdu_discarded);
+      entity->pdu_discarded = 0;
+      entity->t_log_pdu_discard = entity->t_current;
+    }
+    entity->pdu_discarded++;
     entity->stats.rxpdu_dd_pkts++;
     entity->stats.rxpdu_dd_bytes += size;
 

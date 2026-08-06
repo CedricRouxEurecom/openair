@@ -315,10 +315,16 @@ static void enqueue_pdcp_data_ind(const protocol_ctxt_t *const ctxt_pP,
   while (pq.length == PDCP_DATA_IND_QUEUE_SIZE) {
     if (!logged) {
       logged = 1;
-      // Sustained backpressure hits this on every SDU; only accessed under pq.m.
       static unsigned int queue_full_count = 0;
-      if (queue_full_count++ % 1000 == 0)
+      static uint64_t t_log_queue_full = 0;
+      uint64_t now = nr_pdcp_current_time();
+
+      if (queue_full_count != 0 && now > t_log_queue_full + 1000) {
         LOG_W(PDCP, "%s: pdcp_data_ind queue is full (%u times)\n", __FUNCTION__, queue_full_count);
+        queue_full_count = 0;
+        t_log_queue_full = now;
+      }
+      queue_full_count++;
     }
     if (pthread_cond_wait(&pq.c, &pq.m) != 0) abort();
   }

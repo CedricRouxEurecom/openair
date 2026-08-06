@@ -58,29 +58,6 @@ void print_ue_mac_stats(const module_id_t mod, const int frame_rx, const int slo
       break;
   for (int i = 1; i < nb + 1; i++)
     cur += snprintf(cur, end - cur, "/%lu", mac->stats.dl.rounds[i]);
-  cur += snprintf(cur,
-                  end - cur,
-                  " avg code rate %.01f, avg bit/symbol %.01f, avg per TB: "
-                  "(nb RBs %.01f, nb symbols %.01f)",
-                  mac->stats.dl.total_bits ?
-		      (double)mac->stats.dl.target_code_rate / (mac->stats.dl.total_bits * 1024 * 10) : 0.0, // See const Table_51311 definition
-                  mac->stats.dl.total_symbols ?
-		      (double)mac->stats.dl.total_bits / mac->stats.dl.total_symbols : 0.0,
-                  mac->stats.dl.rb_size / nbdl,
-                  mac->stats.dl.nr_of_symbols / nbdl);
-  /* The UE's own view of DL quality. The SNR in the gNB dlsch_rounds line is PUCCH SNR and says
-   * nothing about the downlink; CQI/RI are what the UE actually reports back, so they are what
-   * the gNB's MCS choice follows. */
-  const NR_SSB_meas_t *ssb = &mac->ssb_measurements[mac->mib_ssb];
-  cur += snprintf(cur,
-                  end - cur,
-                  " SSB %d SINR %.01f dB RSRP %d dBm, CSI-RS RSRP %d dBm CQI %d RI %d",
-                  mac->mib_ssb,
-                  ssb->ssb_sinr_dB,
-                  ssb->ssb_rsrp_dBm,
-                  mac->csirs_measurements.rsrp_dBm,
-                  mac->csirs_measurements.cqi,
-                  mac->csirs_measurements.ri);
 
   cur += snprintf(cur, end - cur, "\n    UL harq: %lu", mac->stats.ul.rounds[0]);
   for (nb = NR_MAX_HARQ_ROUNDS_FOR_STATS - 1; nb > 1; nb--)
@@ -92,10 +69,8 @@ void print_ue_mac_stats(const module_id_t mod, const int frame_rx, const int slo
            end - cur,
            " avg code rate %.01f, avg bit/symbol %.01f, avg per TB: "
            "(nb RBs %.01f, nb symbols %.01f)\n",
-           mac->stats.ul.total_bits ?
-	     (double)mac->stats.ul.target_code_rate / (mac->stats.ul.total_bits * 1024 * 10) : 0.0, // See const Table_51311 definition
-           mac->stats.ul.total_symbols ?
-	     (double)mac->stats.ul.total_bits / mac->stats.ul.total_symbols : 0.0,
+           (double)mac->stats.ul.target_code_rate / (mac->stats.ul.total_bits * 1024 * 10), // See const Table_51311 definition
+           (double)mac->stats.ul.total_bits / mac->stats.ul.total_symbols,
            mac->stats.ul.rb_size / nbul,
            mac->stats.ul.nr_of_symbols / nbul);
   LOG_I(NR_MAC, "%s", txt);
