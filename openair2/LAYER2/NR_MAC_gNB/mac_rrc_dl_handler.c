@@ -1055,34 +1055,32 @@ void dl_rrc_message_transfer(const f1ap_dl_rrc_message_t *dl_rrc)
         du_remove_f1_ue_data(*dl_rrc->old_gNB_DU_ue_id);
       }
     } else {
+      // Per TS 38.401: "Find UE context based on old gNB-DU UE F1AP ID, replace old C-RNTI/PCI with new C-RNTI/PCI"
       pthread_mutex_lock(&mac->sched_lock);
-      /* Per TS 38.401: "Find UE context based on old gNB-DU UE F1AP ID, replace
-       * old C-RNTI/PCI with new C-RNTI/PCI". Below, we do the inverse: we keep
-       * the new UE context (with new C-RNTI), but set up everything to reuse the
-       * old config. */
-      uid_t temp_uid = UE->uid;
-      UE->uid = oldUE->uid;
-      oldUE->uid = temp_uid;
+      rnti_t new_rnti = UE->rnti;
+      // assigning the old RNTI to the new RNTI so that mac_remove_nr_ue prints correct RNTI when removing
+      UE->rnti = oldUE->rnti;
+      oldUE->rnti = new_rnti;
+      // if the new UE was performing RA we need to move the old UE to RA procedures
+      // otherwise we just remove the new UE
       for (int i = 1; i < seq_arr_size(&oldUE->UE_sched_ctrl.lc_config); ++i) {
         const nr_lc_config_t *c = seq_arr_at(&oldUE->UE_sched_ctrl.lc_config, i);
         nr_lc_config_t new = *c;
         new.suspended = true;
         nr_mac_add_lcid(&UE->UE_sched_ctrl, &new);
       }
-      ASN_STRUCT_FREE(asn_DEF_NR_CellGroupConfig, UE->CellGroup);
-      UE->CellGroup = oldUE->CellGroup;
-      oldUE->CellGroup = NULL;
-      ASN_STRUCT_FREE(asn_DEF_NR_CellGroupConfig, UE->reconfigCellGroup);
-      UE->reconfigCellGroup = oldUE->reconfigCellGroup;
-      oldUE->reconfigCellGroup = NULL;
-      UE->reestablish_rlc = oldUE->reestablish_rlc;
-      ASN_STRUCT_FREE(asn_DEF_NR_UE_NR_Capability, UE->capability);
-      UE->capability = oldUE->capability;
-      oldUE->capability = NULL;
-      UE->mac_stats = oldUE->mac_stats;
-      UE->measgap_config = oldUE->measgap_config;
-      UE->local_bwp_id = oldUE->local_bwp_id;
-      mac_remove_nr_ue(mac, *dl_rrc->old_gNB_DU_ue_id);
+      // need to move the oldUE to RA list because it still needs to transmit MSG4
+      NR_RA_t *temp_ra = UE->ra;
+      oldUE->ra = temp_ra;
+      UE->ra = NULL;
+      NR_UE_sched_ctrl_t temp_sc;
+      memcpy(&temp_sc, &UE->UE_sched_ctrl, sizeof(NR_UE_sched_ctrl_t));
+      memcpy(&UE->UE_sched_ctrl, &oldUE->UE_sched_ctrl, sizeof(NR_UE_sched_ctrl_t));
+      memcpy(&oldUE->UE_sched_ctrl, &temp_sc, sizeof(NR_UE_sched_ctrl_t));
+      mac_remove_nr_ue(mac, UE->rnti);
+      NR_UE_info_t *r = remove_UE_from_list(MAX_MOBILES_PER_GNB + 1, mac->UE_info.connected_ue_list, oldUE->rnti);
+      DevAssert(r == oldUE);
+      add_UE_to_list(NR_NB_RA_PROC_MAX, mac->UE_info.access_ue_list, oldUE);
       pthread_mutex_unlock(&mac->sched_lock);
       nr_rlc_remove_ue(dl_rrc->gNB_DU_ue_id);
       nr_rlc_update_id(*dl_rrc->old_gNB_DU_ue_id, dl_rrc->gNB_DU_ue_id);
@@ -1096,15 +1094,25 @@ void dl_rrc_message_transfer(const f1ap_dl_rrc_message_t *dl_rrc)
      * Guard against double reestablishment: if reestablish_rlc is already set,
      * reconfigCellGroup was saved by the first reestablishment and
      * CellGroup.spCellConfig is already NULL — don't overwrite. */
-    if (!UE->reestablish_rlc) {
-      asn_copy(&asn_DEF_NR_CellGroupConfig, (void **)&UE->reconfigCellGroup, UE->CellGroup);
-      ASN_STRUCT_FREE(asn_DEF_NR_SpCellConfig, UE->CellGroup->spCellConfig);
-      UE->CellGroup->spCellConfig = NULL;
+    if (!oldUE->reestablish_rlc) {
+      pthread_mutex_lock(&mac->sched_lock);
+      asn_copy(&asn_DEF_NR_CellGroupConfig, (void **)&oldUE->reconfigCellGroup, oldUE->CellGroup);
+      ASN_STRUCT_FREE(asn_DEF_NR_SpCellConfig, oldUE->CellGroup->spCellConfig);
+      oldUE->CellGroup->spCellConfig = NULL;
+      reset_sc_info(&oldUE->sc_info);
+      configure_UE_BWP(mac,
+                       mac->common_channels[0].ServingCellConfigCommon,
+                       oldUE,
+                       true,
+                       NR_SearchSpace__searchSpaceType_PR_common,
+                       -1,
+                       -1);
+     pthread_mutex_unlock(&mac->sched_lock);
     } else {
       LOG_W(NR_MAC, "UE %04x: reestablishment while previous reestablishment still pending, "
-            "keeping saved reconfigCellGroup with spCellConfig\n", UE->rnti);
+            "keeping saved reconfigCellGroup with spCellConfig\n", oldUE->rnti);
     }
-    UE->reestablish_rlc = true;
+    oldUE->reestablish_rlc = true;
     /* Per TS 38.331 clause 5.3.7.4: apply gNB RLC configuration for SRB1 to match the UE RLC configuration defined in 9.2.1.
      * Use configuration file values for timers t_poll_retransmit, t_reassembly and t_status_prohibit */
     nr_rlc_configuration_t rlc_configuration = mac->rlc_config;
