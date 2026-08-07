@@ -319,7 +319,8 @@ static void enqueue_pdcp_data_ind(const protocol_ctxt_t *const ctxt_pP,
       static uint64_t t_log_queue_full = 0;
       uint64_t now = nr_pdcp_current_time();
 
-      if (queue_full_count != 0 && now > t_log_queue_full + 1000) {
+      /* 1280 ms = 128 frames @ 10 ms, to match MAC cadence */
+      if (queue_full_count != 0 && now > t_log_queue_full + 1280) {
         LOG_W(PDCP, "%s: pdcp_data_ind queue is full (%u times)\n", __FUNCTION__, queue_full_count);
         queue_full_count = 0;
         t_log_queue_full = now;
