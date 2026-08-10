@@ -1956,6 +1956,11 @@ static void handle_ueCapabilityInformation(gNB_RRC_INST *rrc, gNB_RRC_UE_t *UE, 
     const NR_UE_CapabilityRAT_ContainerList_t *ue_CapabilityRAT_ContainerList =
         ue_cap_info->criticalExtensions.choice.ueCapabilityInformation->ue_CapabilityRAT_ContainerList;
 
+    if (!ue_CapabilityRAT_ContainerList) {
+      LOG_E(NR_RRC, "ue_CapabilityRAT_ContainerList is NULL, nothing to handle\n");
+      return;
+    }
+
     /* Encode UE-CapabilityRAT-ContainerList for sending to the DU */
     FREE_AND_ZERO_BYTE_ARRAY(UE->ue_cap_buffer);
     UE->ue_cap_buffer.len = uper_encode_to_new_buffer(&asn_DEF_NR_UE_CapabilityRAT_ContainerList,
@@ -1963,7 +1968,7 @@ static void handle_ueCapabilityInformation(gNB_RRC_INST *rrc, gNB_RRC_UE_t *UE, 
                                                       ue_CapabilityRAT_ContainerList,
                                                       (void **)&UE->ue_cap_buffer.buf);
     if (UE->ue_cap_buffer.len <= 0) {
-      LOG_E(RRC, "could not encode UE-CapabilityRAT-ContainerList, abort handling capabilities\n");
+      LOG_E(NR_RRC, "could not encode UE-CapabilityRAT-ContainerList, abort handling capabilities\n");
       return;
     }
     LOG_UE_UL_EVENT(UE, "Received UE capabilities\n");
