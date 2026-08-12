@@ -721,7 +721,7 @@ void rrc_gnb_nrdc_measurement_received(gNB_RRC_INST *rrc, gNB_RRC_UE_t *ue, NR_M
   }
 
   uint64_t *ue_agg_mbr = malloc_or_fail(sizeof(*ue_agg_mbr));
-  *ue_agg_mbr = 1000000000 /*bps*/;       /* todo: hardcoded, use correct value */
+  *ue_agg_mbr = 2000000000 /*bps*/;       /* todo: hardcoded, use correct value */
 
   /* tranfser the first DRB (should be the 'default' one) */
   /* note: this code is copy/paste from fill_drb_to_be_setup(), think about how to factorize */
