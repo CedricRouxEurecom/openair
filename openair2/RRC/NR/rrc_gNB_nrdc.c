@@ -850,7 +850,7 @@ void rrc_gnb_nrdc_measurement_received(gNB_RRC_INST *rrc, gNB_RRC_UE_t *ue, NR_M
 
   nrdc->state = ACTIVATE_NRDC_WAIT_FOR_F1_CONTEXT_SETUP_RESPONSE;
 
-  LOG_E(NR_RRC, "NR-DC activation: rrc->mac_rrc.ue_context_setup_request() has been called\n");
+  LOG_D(NR_RRC, "NR-DC activation: rrc->mac_rrc.ue_context_setup_request() has been called\n");
 }
 
 void rrc_gnb_nrdc_timeout(gNB_RRC_INST *rrc, nr_rrc_nrdc_timeout_t *timeout)
