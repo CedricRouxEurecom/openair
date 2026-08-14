@@ -238,7 +238,6 @@ void oai_xran_fh_rx_prach_callback(void *pCallbackTag, xran_status_t status, uin
             struct xran_prb_map *pRbMap = (struct xran_prb_map *)bufs->prachdstdecomp[ant_id][tti % XRAN_N_FE_BUF_LEN].pBuffers->pData;
             AssertFatal(pRbMap != NULL, "(%d:%d:%d)pRbMapPrach == NULL. Aborting.\n", cc_id, tti % XRAN_N_FE_BUF_LEN, ant_id);
             for (uint32_t sym_id = 0; sym_id < XRAN_NUM_OF_SYMBOL_PER_SLOT; sym_id++) {
-              AssertFatal(pRbMap->sFrontHaulRxPacketCtrl[sym_id].nRxPkt <= 1, "PRACH segmentation is not supported\n");
               info->nRxPkt[cc_id][ant_id + ru_idx * fh_config->neAxc][sym_id] = pRbMap->sFrontHaulRxPacketCtrl[sym_id].nRxPkt;
               pRbMap->sFrontHaulRxPacketCtrl[sym_id].nRxPkt = 0;
             }
@@ -364,11 +363,8 @@ int xran_fh_rx_prach_read_slot(PHY_VARS_gNB *gNB, ru_info_t *ru, int *frame, int
           LOG_D(HW, "read_prach %d.%d.%d saa = %d: nRxPkt = 0!\n", *frame, *slot, sym_idx, aa);
           memset(&dst[sym_idx], 0, N_ZC * 2 * sizeof(*dst));
           continue;
-        } else if (nRxPkt > 1) { // protection
-          LOG_E(HW, "read_prach %d.%d.%d saa = %d: nRxPkt = %d!\n", *frame, *slot, sym_idx, aa, nRxPkt);
-          memset(&dst[sym_idx], 0, N_ZC * 2 * sizeof(*dst));
-          continue;
-        } else {
+        }
+        else {
           src = (int16_t *)p_rx_packet_ctl->pData[0];
           if (src == NULL) { // protection
             LOG_E(HW, "read_prach %d.%d.%d saa = %d:  src = NULL!!\n", *frame, *slot, sym_idx, aa);
