@@ -4,6 +4,7 @@
 
 #include <stdio.h>
 #include <stdint.h>
+#include <time.h>
 
 #include "common/config/config_load_configmodule.h"
 #include "common/config/config_userapi.h"
@@ -201,6 +202,82 @@ static void test_dl_data_delivery_status(void)
   AssertFatal(!decode_nrup_dl_data_delivery_status(buf, b.pos, &decoded), "decode must reject wrong PDU type\n");
 }
 
+/** 125k iterations */
+#define NRUP_BENCH_ITERATIONS 125000u
+
+static void nrup_bench_print(uint32_t pdu_bytes, const struct timespec *start, const struct timespec *end)
+{
+  const double elapsed_ns = (end->tv_sec - start->tv_sec) * 1e9 + (end->tv_nsec - start->tv_nsec);
+  const double ns_per_cycle = elapsed_ns / NRUP_BENCH_ITERATIONS;
+
+  printf("pdu_bytes=%u elapsed=%.2f ms ns/cycle=%.1f\n", pdu_bytes, elapsed_ns / 1e6, ns_per_cycle);
+}
+
+static void bench_dl_user_data(const nrup_dl_user_data_t *orig)
+{
+  uint8_t buf[32];
+  byte_array_producer_t probe = byte_array_producer_from_buffer(buf, sizeof(buf));
+  AssertFatal(encode_nrup_dl_user_data(&probe, orig) == 1, "encode_nrup_dl_user_data() failed\n");
+  const uint32_t pdu_bytes = probe.pos;
+
+  nrup_dl_user_data_t decoded;
+  struct timespec start;
+  struct timespec end;
+  clock_gettime(CLOCK_MONOTONIC, &start);
+  for (uint32_t i = 0; i < NRUP_BENCH_ITERATIONS; i++) {
+    byte_array_producer_t b = byte_array_producer_from_buffer(buf, sizeof(buf));
+    AssertFatal(encode_nrup_dl_user_data(&b, orig) == 1, "encode_nrup_dl_user_data() failed\n");
+    AssertFatal(decode_nrup_dl_user_data(buf, b.pos, &decoded), "decode_nrup_dl_user_data() failed\n");
+  }
+  clock_gettime(CLOCK_MONOTONIC, &end);
+  nrup_bench_print(pdu_bytes, &start, &end);
+}
+
+static void bench_ddds(const nrup_dl_data_delivery_status_t *orig)
+{
+  uint8_t buf[64];
+  byte_array_producer_t probe = byte_array_producer_from_buffer(buf, sizeof(buf));
+  AssertFatal(encode_nrup_dl_data_delivery_status(&probe, orig) == 1, "encode_nrup_dl_data_delivery_status() failed\n");
+  const uint32_t pdu_bytes = probe.pos;
+
+  nrup_dl_data_delivery_status_t decoded;
+  struct timespec start;
+  struct timespec end;
+  clock_gettime(CLOCK_MONOTONIC, &start);
+  for (uint32_t i = 0; i < NRUP_BENCH_ITERATIONS; i++) {
+    byte_array_producer_t b = byte_array_producer_from_buffer(buf, sizeof(buf));
+    AssertFatal(encode_nrup_dl_data_delivery_status(&b, orig) == 1, "encode_nrup_dl_data_delivery_status() failed\n");
+    AssertFatal(decode_nrup_dl_data_delivery_status(buf, b.pos, &decoded), "decode_nrup_dl_data_delivery_status() failed\n");
+  }
+  clock_gettime(CLOCK_MONOTONIC, &end);
+  nrup_bench_print(pdu_bytes, &start, &end);
+}
+
+static void run_nrup_benchmark(void)
+{
+  printf("nrup_lib bench: %u enc/dec iterations per scenario\n", NRUP_BENCH_ITERATIONS);
+
+  printf("dl_user_data_minimal\n");
+  bench_dl_user_data(&(const nrup_dl_user_data_t){.nru_sequence_number = 1});
+
+  printf("dl_user_data_report_delivered\n");
+  bench_dl_user_data(&(const nrup_dl_user_data_t){
+      .nru_sequence_number = 1,
+      .report_delivered = true,
+      .nr_pdcp_pdu_sn = 42,
+  });
+
+  printf("ddds_minimal\n");
+  bench_ddds(&(const nrup_dl_data_delivery_status_t){.desired_buffer_size = 4096});
+
+  printf("ddds_oai_tx\n");
+  bench_ddds(&(const nrup_dl_data_delivery_status_t){
+      .desired_buffer_size = 4096,
+      .highest_transmitted_nr_pdcp_sn_present = true,
+      .highest_transmitted_nr_pdcp_sn = 99,
+  });
+}
+
 int main(int argc, char **argv)
 {
   uniqCfg = load_configmodule(argc, argv, CONFIG_ENABLECMDLINEONLY);
@@ -209,5 +286,6 @@ int main(int argc, char **argv)
   set_log(NR_UP, OAILOG_INFO);
   test_dl_user_data();
   test_dl_data_delivery_status();
+  run_nrup_benchmark();
   return 0;
 }
