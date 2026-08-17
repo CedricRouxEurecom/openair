@@ -1691,7 +1691,7 @@ static void nr_rrc_ue_process_rrcReconfiguration(NR_UE_RRC_INST_t *rrc, int gNB_
                                               0,
                                               0);
         if ((dec_rval.code != RC_OK) && (dec_rval.consumed == 0)) {
-          RRCLOG_E("NR_CellGroupConfig decode error\n");
+          RRCLOG_E("NR_CellGroupConfig decode error, size: %ld\n", ie->secondaryCellGroup->size);
           // free the memory
           SEQUENCE_free(&asn_DEF_NR_CellGroupConfig, (void *)cellGroupConfig, 1);
           // if the ASN1 decoding fails for the received CellGroup configuration
@@ -3313,6 +3313,7 @@ void *rrc_nrue(void *notUsed)
     LOG_D(NR_RRC, "RRC frame advances %u -> %u\n", rrc->current_frame, NRRRC_FRAME_PROCESS(msg_p).frame);
     rrc->current_hfn = NRRRC_FRAME_PROCESS(msg_p).hfn;
     rrc->current_frame = NRRRC_FRAME_PROCESS(msg_p).frame;
+    RRCLOG_D("Got new frame information: %d\n", rrc->current_frame);
     // increase the timers every 10ms (every new frame)
     nr_rrc_handle_timers(rrc);
     NR_UE_RRC_SI_INFO *SInfo = &rrc->perNB[NRRRC_FRAME_PROCESS(msg_p).gnb_id].SInfo;
