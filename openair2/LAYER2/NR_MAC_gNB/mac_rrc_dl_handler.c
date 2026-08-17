@@ -1145,10 +1145,14 @@ void f1_paging(const f1ap_paging_t *paging)
 
 void trp_information_request(const f1ap_trp_information_req_t *req)
 {
-  positioning_config_t positioning_config = RCconfig_nr_positioning();
-  uint8_t NumTRPs = positioning_config.num_trp;
-  f1ap_trp_information_resp_t resp = {0};
   gNB_MAC_INST *mac = RC.nrmac[0];
+  positioning_config_t *positioning_config = mac->positioning_config;
+  if (positioning_config == NULL) {
+    LOG_E(NR_PHY, "No TRPs configured for positioning in the configuration file\n");
+    return;
+  }
+  uint8_t NumTRPs = positioning_config->num_trp;
+  f1ap_trp_information_resp_t resp = {0};
 
   resp.transaction_id = req->transaction_id;
   // Check if the TRP_ID matches with the list sent in the trp information request
@@ -1160,7 +1164,7 @@ void trp_information_request(const f1ap_trp_information_req_t *req)
         calloc_or_fail(trp_list_length, sizeof(*resp.trp_information_list.trp_information_item));
     for (int i = 0; i < trp_list_length; i++) {
       for (int j = 0; j < NumTRPs; j++) {
-        if (positioning_config.trps[j].id == req->trp_list.trp_list_item[i].trp_id) {
+        if (positioning_config->trps[j].id == req->trp_list.trp_list_item[i].trp_id) {
           resp.trp_information_list.trp_information_item[trp_resp_len].trp_id = req->trp_list.trp_list_item[i].trp_id;
           trp_resp_len++;
         }
@@ -1172,8 +1176,8 @@ void trp_information_request(const f1ap_trp_information_req_t *req)
         calloc_or_fail(NumTRPs, sizeof(*resp.trp_information_list.trp_information_item));
     for (int i = 0; i < NumTRPs; i++) {
       f1ap_trp_information_t *trp_info_item = &resp.trp_information_list.trp_information_item[i];
-      trp_info_item->trp_id = positioning_config.trps[i].id;
-      create_trp_info_item(req, trp_info_item, &positioning_config, i);
+      trp_info_item->trp_id = positioning_config->trps[i].id;
+      create_trp_info_item(req, trp_info_item, positioning_config, i);
     }
     resp.trp_information_list.trp_information_item_length = NumTRPs;
   }

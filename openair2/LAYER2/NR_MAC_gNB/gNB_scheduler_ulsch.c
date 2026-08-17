@@ -1812,7 +1812,11 @@ void handle_nr_srs_toa_vendor_ext_measurements(const module_id_t module_id,
       break;
   }
 
-  positioning_config_t positioning_config = RCconfig_nr_positioning();
+  positioning_config_t *positioning_config = mac->positioning_config;
+  if (positioning_config == NULL) {
+    LOG_E(NR_MAC, "No TRPs configured for positioning in the configuration file\n");
+    return;
+  }
   const f1ap_trp_measurement_request_list_t *req_list = &req->trp_measurement_request_list;
   uint32_t req_list_len = req_list->trp_measurement_request_list_length;
   f1ap_trp_measurement_request_item_t *req_item = req_list->trp_measurement_request_item;
@@ -1821,8 +1825,8 @@ void handle_nr_srs_toa_vendor_ext_measurements(const module_id_t module_id,
 
   // Count the number of relavent TRPs
   for (int i = 0; i < req_list_len; i++) {
-    for (int j = 0; j < positioning_config.num_trp; j++) {
-      if (req_item[i].tRPID == positioning_config.trps[j].id) {
+    for (int j = 0; j < positioning_config->num_trp; j++) {
+      if (req_item[i].tRPID == positioning_config->trps[j].id) {
         if (num_trps < MAX_NUM_MEASURE_TRPS) {
           trp_ids_list[num_trps] = req_item[i].tRPID;
           num_trps++;

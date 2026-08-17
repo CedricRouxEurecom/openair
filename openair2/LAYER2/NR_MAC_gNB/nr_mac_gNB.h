@@ -1336,6 +1336,7 @@ typedef struct gNB_MAC_INST_s {
 
   seq_arr_t pos_act_ue_arr;
   positioning_measurement_info_t pos_meas_info;
+  positioning_config_t *positioning_config;
 } gNB_MAC_INST;
 
 #endif /*__LAYER2_NR_MAC_GNB_H__ */
