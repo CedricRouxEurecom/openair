@@ -34,7 +34,7 @@ def OC_login(cmd, ocUserName, ocPassword, ocProjectName):
 		raise ValueError('Insufficient Parameter: no OC Credentials')
 	if OCRegistry.startswith("http") or OCRegistry.endswith("/"):
 		raise ValueError(f'ocRegistry {OCRegistry} should not start with http:// or https:// and not end on a slash /')
-	ret = cmd.run(f'oc login -u {ocUserName} -p {ocPassword} --server {OCUrl}')
+	ret = cmd.run(f'oc login -u {ocUserName} -p {ocPassword} --server {OCUrl} --insecure-skip-tls-verify')
 	if ret.returncode != 0:
 		logging.error('\u001B[1m OC Cluster Login Failed\u001B[0m')
 		return False
