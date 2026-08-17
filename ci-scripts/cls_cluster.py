@@ -218,17 +218,10 @@ class Cluster:
 			forceBaseImageBuild = True
 
 		# logging to OC Cluster and then switch to corresponding project
-		ret = self.cmd.run(f'oc login -u {ocUserName} -p {ocPassword} --server {self.OCUrl}')
-		if ret.returncode != 0:
-			logging.error('\u001B[1m OC Cluster Login Failed\u001B[0m')
+		succeeded = OC_login(self.cmd, ocUserName, ocPassword, CI_OC_RAN_NAMESPACE)
+		if not succeeded:
 			HTML.CreateHtmlTestRow('N/A', 'KO', CONST.OC_LOGIN_FAIL)
-			return False
-
-		ret = self.cmd.run(f'oc project {ocProjectName}')
-		if ret.returncode != 0:
-			logging.error(f'\u001B[1mUnable to access OC project {ocProjectName}\u001B[0m')
-			self.cmd.run('oc logout')
-			HTML.CreateHtmlTestRow('N/A', 'KO', CONST.OC_PROJECT_FAIL)
+			self.cmd.close()
 			return False
 
 		# delete old images by Sagar Arora <sagar.arora@openairinterface.org>:
