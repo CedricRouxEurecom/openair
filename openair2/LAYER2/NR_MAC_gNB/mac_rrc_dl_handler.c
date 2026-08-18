@@ -1016,17 +1016,6 @@ void dl_rrc_message_transfer(const f1ap_dl_rrc_message_t *dl_rrc)
         dl_rrc->srb_id);
 
   gNB_MAC_INST *mac = RC.nrmac[0];
-  pthread_mutex_lock(&mac->sched_lock);
-  /* check first that the scheduler knows such UE */
-  NR_UE_info_t *UE = find_nr_UE(&mac->UE_info, dl_rrc->gNB_DU_ue_id);
-  UE = UE ? UE : find_ra_UE(&mac->UE_info, dl_rrc->gNB_DU_ue_id);
-  if (UE == NULL) {
-    LOG_E(MAC, "ERROR: unknown UE with RNTI %04x, ignoring DL RRC Message Transfer\n", dl_rrc->gNB_DU_ue_id);
-    pthread_mutex_unlock(&mac->sched_lock);
-    return;
-  }
-  pthread_mutex_unlock(&mac->sched_lock);
-
   if (!du_exists_f1_ue_data(dl_rrc->gNB_DU_ue_id)) {
     LOG_D(NR_MAC, "No CU UE ID stored for UE RNTI %04x, adding CU UE ID %d\n", dl_rrc->gNB_DU_ue_id, dl_rrc->gNB_CU_ue_id);
     f1_ue_data_t new_ue_data = {.secondary_ue = dl_rrc->gNB_CU_ue_id};
@@ -1045,6 +1034,14 @@ void dl_rrc_message_transfer(const f1ap_dl_rrc_message_t *dl_rrc)
   if (dl_rrc->old_gNB_DU_ue_id != NULL) {
     AssertFatal(*dl_rrc->old_gNB_DU_ue_id != dl_rrc->gNB_DU_ue_id,
                 "logic bug: current and old gNB DU UE ID cannot be the same\n");
+    /* check first that the scheduler knows such UE among the ones doing RA */
+    NR_UE_info_t *UE = find_ra_UE(&mac->UE_info, dl_rrc->gNB_DU_ue_id);
+    if (UE == NULL) {
+      LOG_E(MAC, "ERROR: unknown UE with RNTI %04x, ignoring DL RRC Message Transfer\n", dl_rrc->gNB_DU_ue_id);
+      pthread_mutex_unlock(&mac->sched_lock);
+      return;
+    }
+    pthread_mutex_unlock(&mac->sched_lock);
     NR_UE_info_t *oldUE = find_nr_UE(&mac->UE_info, *dl_rrc->old_gNB_DU_ue_id);
     if (oldUE == NULL) {
       /* No matching UE-associated logical F1-connection for the old gNB-DU UE F1AP ID.
@@ -1058,11 +1055,11 @@ void dl_rrc_message_transfer(const f1ap_dl_rrc_message_t *dl_rrc)
         du_remove_f1_ue_data(*dl_rrc->old_gNB_DU_ue_id);
       }
     } else {
+      pthread_mutex_lock(&mac->sched_lock);
       /* Per TS 38.401: "Find UE context based on old gNB-DU UE F1AP ID, replace
        * old C-RNTI/PCI with new C-RNTI/PCI". Below, we do the inverse: we keep
        * the new UE context (with new C-RNTI), but set up everything to reuse the
        * old config. */
-      pthread_mutex_lock(&mac->sched_lock);
       uid_t temp_uid = UE->uid;
       UE->uid = oldUE->uid;
       oldUE->uid = temp_uid;
