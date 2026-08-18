@@ -3289,7 +3289,7 @@ static void rrc_send_f1_ue_context_modification_request(const gNB_RRC_INST *rrc,
       if (!n_rel_drbs && !n_drbs)
         return;
       memcpy(&rel_drbs[nrdc_bearer_index], &rel_drbs[nrdc_bearer_index + 1],
-             sizeof(*rel_drbs) * n_rel_drbs - nrdc_bearer_index);
+             sizeof(*rel_drbs) * (n_rel_drbs - nrdc_bearer_index));
     }
   }
 
