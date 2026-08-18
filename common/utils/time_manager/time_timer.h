@@ -14,7 +14,7 @@ void time_timer_ms_tick(void);
 
 /* returns a timer pointer to be passed to tick_timeout_stop()
  * p, psize, v, vsize are parameters for the callback (we have
- * a many parameters as the user needs)
+ * as many parameters as the user needs)
  */
 void *tick_timeout_start(int ms, void (*callback)(void **p, uint64_t *v), void **p, int psize, uint64_t *v, int vsize);
 void tick_timeout_stop(void *timer);

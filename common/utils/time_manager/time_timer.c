@@ -216,7 +216,7 @@ void *tick_timeout_start(int ms, void (*callback)(void **p, uint64_t *v), void *
   }
   if (vsize) {
     new_timer->v = malloc_or_fail(sizeof(uint64_t) * vsize);
-    memcpy(new_timer->v, v, sizeof(uint64_t *) * vsize);
+    memcpy(new_timer->v, v, sizeof(uint64_t) * vsize);
   }
   new_timer->disabled = false;
   new_timer->callback_running = false;
