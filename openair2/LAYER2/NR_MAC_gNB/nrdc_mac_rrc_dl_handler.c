@@ -63,7 +63,7 @@ static NR_UE_info_t *nrdc_create_new_UE(gNB_MAC_INST *mac, uint32_t cu_id, const
 
 void nrdc_ue_context_setup_request(const f1ap_ue_context_setup_req_t *req)
 {
-  LOG_E(NR_MAC, "nrdc_ue_context_setup_request called!\n");
+  LOG_D(NR_MAC, "nrdc_ue_context_setup_request called!\n");
 
   gNB_MAC_INST *mac = RC.nrmac[0];
 
