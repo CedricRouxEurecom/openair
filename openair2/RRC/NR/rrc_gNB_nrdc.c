@@ -894,7 +894,7 @@ bool rrc_gnb_nrdc_wait_for_f1_context_setup_response(gNB_RRC_UE_t *ue)
 
 void nrdc_rrc_CU_process_ue_context_setup_response(gNB_RRC_UE_t *ue, gNB_RRC_INST *rrc, f1ap_ue_context_setup_resp_t *resp)
 {
-  LOG_E(NR_RRC, "nrdc_rrc_CU_process_ue_context_setup_response called\n");
+  LOG_D(NR_RRC, "nrdc_rrc_CU_process_ue_context_setup_response called\n");
 
   nrdc_ue_state_t *nrdc = ue->nrdc;
   if (!nrdc) {
