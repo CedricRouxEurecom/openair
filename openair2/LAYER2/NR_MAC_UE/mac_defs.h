@@ -380,6 +380,8 @@ typedef struct {
   bool active;
   bool ack_received;
   uint8_t  pucch_resource_indicator;
+  /* use pucch-ResourceCommon table (TS 38.213 9.2.1) for this HARQ-ACK */
+  bool pucch_resource_common;
   frame_t ul_frame;
   int ul_slot;
   uint8_t ack;
