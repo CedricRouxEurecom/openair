@@ -193,23 +193,6 @@ static int generate_a4_measurement(gNB_RRC_UE_t *ue,
   nrdc->report_config_id = allocate_report_config_id(ue);
   nrdc->measurement_id = allocate_measurement_id(ue);
 
-  /* This is needed.
-   * When using du_ssb_mtc of an FR2 cell, the UE does not report
-   * measurements.
-   * To be fixed/understood better.
-   */
-  NR_SSB_MTC_t mtc = {
-    .periodicityAndOffset = {
-      .present = NR_SSB_MTC__periodicityAndOffset_PR_sf20,
-      .choice = {
-        .sf20 = 0
-      }
-    },
-    //.duration = NR_SSB_MTC__duration_sf5
-    .duration = NR_SSB_MTC__duration_sf1         /* we have only the first SS/PBCH block, 1ms is enough */
-  };
-  du_ssb_mtc = &mtc;
-
   NR_DL_DCCH_Message_t m = {
     .message = {
       .present = NR_DL_DCCH_MessageType_PR_c1,
