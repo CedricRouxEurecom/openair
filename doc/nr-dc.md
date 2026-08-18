@@ -1,6 +1,6 @@
 # NR-DC tutorial
 
-[[_TOC__]]
+[[_TOC_]]
 
 This tutorial explains how to test NR-DC with OAI gNB.
 
