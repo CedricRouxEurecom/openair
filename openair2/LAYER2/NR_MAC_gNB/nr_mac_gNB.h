@@ -1290,6 +1290,24 @@ typedef struct nr_cell_sched_s {
   /// Per-cell KPI statistics
   NR_du_stats_t du_stats;
   uint64_t num_scheduled_prach_rx;
+
+  // Per-cell MAC function execution performance profiler
+  /// processing time of gNB scheduler
+  time_stats_t gNB_scheduler;
+  /// processing time of gNB scheduler for Random access
+  time_stats_t schedule_ra;
+  /// processing time of gNB ULSCH scheduler, including preprocessor
+  time_stats_t schedule_ulsch;
+  /// processing time of gNB DLSCH scheduler, including rlc_data_req + MAC header + preprocessor
+  time_stats_t schedule_dlsch;
+  /// processing time of rlc_data_req
+  time_stats_t rlc_data_req;
+  /// processing time of nr_srs_ri_computation
+  time_stats_t nr_srs_ri_computation_timer;
+  /// processing time of nr_srs_tpmi_estimation
+  time_stats_t nr_srs_tpmi_computation_timer;
+  /// processing time of gNB ULSCH reception, including rlc_data_ind
+  time_stats_t rx_ulsch_sdu;
 } nr_cell_sched_t;
 
 /*! \brief top level gNB MAC structure */
@@ -1310,24 +1328,6 @@ typedef struct gNB_MAC_INST_s {
   nr_cell_sched_t cells[NR_MAX_CELLS];
 
   NR_UEs_t UE_info;
-
-  // MAC function execution performance profiler
-  /// processing time of gNB scheduler
-  time_stats_t gNB_scheduler;
-  /// processing time of gNB scheduler for Random access
-  time_stats_t schedule_ra;
-  /// processing time of gNB DLSCH scheduler
-  time_stats_t schedule_ulsch;  // include preprocessor
-  /// processing time of gNB DLSCH scheduler
-  time_stats_t schedule_dlsch;  // include rlc_data_req + MAC header + preprocessor
-  /// processing time of rlc_data_req
-  time_stats_t rlc_data_req;
-  /// processing time of nr_srs_ri_computation
-  time_stats_t nr_srs_ri_computation_timer;
-  /// processing time of nr_srs_tpmi_estimation
-  time_stats_t nr_srs_tpmi_computation_timer;
-  /// processing time of gNB ULSCH reception
-  time_stats_t rx_ulsch_sdu;  // include rlc_data_ind
 
   /// DL preprocessor for differentiated scheduling
   nr_pp_impl_dl pre_processor_dl;

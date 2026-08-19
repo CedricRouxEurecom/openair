@@ -2130,7 +2130,7 @@ void nr_schedule_RA(gNB_MAC_INST *mac,
                     nfapi_nr_dl_tti_request_t *DL_req,
                     nfapi_nr_tx_data_request_t *TX_req)
 {
-  start_meas(&mac->schedule_ra);
+  start_meas(&cell->schedule_ra);
   UE_iterator(mac->UE_info.access_ue_list, UE) {
     if (UE->pcell != cell)
       continue;
@@ -2167,5 +2167,5 @@ void nr_schedule_RA(gNB_MAC_INST *mac,
         break;
     }
   }
-  stop_meas(&mac->schedule_ra);
+  stop_meas(&cell->schedule_ra);
 }

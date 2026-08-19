@@ -57,16 +57,22 @@ void *nrmac_stats_thread(void *arg) {
   while (oai_exit == 0) {
     char *p = output;
     NR_SCHED_LOCK(&gNB->sched_lock);
-    p += dump_mac_stats(gNB, &gNB->cells[0], p, end - p, false);
-    p += snprintf(p, end - p, "\n");
-    p += print_meas_log(&gNB->gNB_scheduler, "gNB_scheduler", NULL, NULL, p, end - p);
-    p += print_meas_log(&gNB->rx_ulsch_sdu, "rx_ulsch_sdu", NULL, NULL, p, end - p);
-    p += print_meas_log(&gNB->schedule_dlsch, "dlsch scheduler", NULL, NULL, p, end - p);
-    p += print_meas_log(&gNB->schedule_ulsch, "ulsch scheduler", NULL, NULL, p, end - p);
-    p += print_meas_log(&gNB->schedule_ra, "RA scheduler", NULL, NULL, p, end - p);
-    p += print_meas_log(&gNB->rlc_data_req, "rlc_data_req", NULL, NULL, p, end - p);
-    p += print_meas_log(&gNB->nr_srs_ri_computation_timer, "UL-RI computation time", NULL, NULL, p, end - p);
-    p += print_meas_log(&gNB->nr_srs_tpmi_computation_timer, "UL-TPMI computation time", NULL, NULL, p, end - p);
+    for (int i = 0; i < NR_MAX_CELLS; i++) {
+      nr_cell_sched_t *cell = &gNB->cells[i];
+      if (!cell->common_channels.ServingCellConfigCommon)
+        continue;
+      p += snprintf(p, end - p, "=== Cell %d ===\n", i);
+      p += dump_mac_stats(gNB, cell, p, end - p, false);
+      p += snprintf(p, end - p, "\n");
+      p += print_meas_log(&cell->gNB_scheduler, "gNB_scheduler", NULL, NULL, p, end - p);
+      p += print_meas_log(&cell->rx_ulsch_sdu, "rx_ulsch_sdu", NULL, NULL, p, end - p);
+      p += print_meas_log(&cell->schedule_dlsch, "dlsch scheduler", NULL, NULL, p, end - p);
+      p += print_meas_log(&cell->schedule_ulsch, "ulsch scheduler", NULL, NULL, p, end - p);
+      p += print_meas_log(&cell->schedule_ra, "RA scheduler", NULL, NULL, p, end - p);
+      p += print_meas_log(&cell->rlc_data_req, "rlc_data_req", NULL, NULL, p, end - p);
+      p += print_meas_log(&cell->nr_srs_ri_computation_timer, "UL-RI computation time", NULL, NULL, p, end - p);
+      p += print_meas_log(&cell->nr_srs_tpmi_computation_timer, "UL-TPMI computation time", NULL, NULL, p, end - p);
+    }
     NR_SCHED_UNLOCK(&gNB->sched_lock);
     size_t len = p - output;
     if (fwrite(output, len, 1, file) != 1 || fflush(file) != 0) {

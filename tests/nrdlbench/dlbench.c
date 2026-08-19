@@ -649,11 +649,11 @@ int main(int argc, char **argv)
     printf("  ---------------------------------------------------------------------------\n");
 
     printf("  Scheduler:\n");
-    print_meas_row("  Total", &gNB_mac->gNB_scheduler, count);
-    print_meas_row("    RA scheduling", &gNB_mac->schedule_ra, count);
-    print_meas_row("    UL scheduling", &gNB_mac->schedule_ulsch, count);
-    print_meas_row("    DL scheduling (PDCCH+PDSCH)", &gNB_mac->schedule_dlsch, count);
-    print_meas_row("      RLC data req", &gNB_mac->rlc_data_req, count);
+    print_meas_row("  Total", &cell->gNB_scheduler, count);
+    print_meas_row("    RA scheduling", &cell->schedule_ra, count);
+    print_meas_row("    UL scheduling", &cell->schedule_ulsch, count);
+    print_meas_row("    DL scheduling (PDCCH+PDSCH)", &cell->schedule_dlsch, count);
+    print_meas_row("      RLC data req", &cell->rlc_data_req, count);
 
     printf("  PHY TX:\n");
     print_meas_row("  Total", &gNB->phy_proc_tx, count);

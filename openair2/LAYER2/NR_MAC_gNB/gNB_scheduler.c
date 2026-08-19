@@ -144,7 +144,7 @@ void gNB_dlsch_ulsch_scheduler(module_id_t module_idP, const int cell_id, frame_
   clear_beam_information(&cell->beam_info, frame, slot, slots_frame);
 
   gNB->frame = frame;
-  start_meas(&gNB->gNB_scheduler);
+  start_meas(&cell->gNB_scheduler);
 
   int num_beams = 1;
   if (cell->beam_info.beam_mode != NO_BEAM_MODE)
@@ -226,14 +226,14 @@ void gNB_dlsch_ulsch_scheduler(module_id_t module_idP, const int cell_id, frame_
   }
 
   // This schedules the DCI for Uplink and subsequently PUSCH
-  start_meas(&gNB->schedule_ulsch);
+  start_meas(&cell->schedule_ulsch);
   nr_schedule_ulsch(gNB, cell, frame, slot, &sched_info->UL_dci_req);
-  stop_meas(&gNB->schedule_ulsch);
+  stop_meas(&cell->schedule_ulsch);
 
   // This schedules the DCI for Downlink and PDSCH
-  start_meas(&gNB->schedule_dlsch);
+  start_meas(&cell->schedule_dlsch);
   nr_schedule_ue_spec(gNB, cell, frame, slot, &sched_info->DL_req, &sched_info->TX_req);
-  stop_meas(&gNB->schedule_dlsch);
+  stop_meas(&cell->schedule_dlsch);
 
   nr_sr_reporting(gNB, cell, frame, slot);
 
@@ -244,6 +244,6 @@ void gNB_dlsch_ulsch_scheduler(module_id_t module_idP, const int cell_id, frame_
 
   nr_fill_pusch_fapi_groups(&sched_info->UL_tti_req);
 
-  stop_meas(&gNB->gNB_scheduler);
+  stop_meas(&cell->gNB_scheduler);
   NR_SCHED_UNLOCK(&gNB->sched_lock);
 }

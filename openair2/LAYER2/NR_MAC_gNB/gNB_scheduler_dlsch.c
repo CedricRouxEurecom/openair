@@ -1073,7 +1073,7 @@ static void generate_dl_mac_pdu(gNB_MAC_INST *mac,
     DevAssert(TBS > written);
     int dlsch_total_bytes = 0;
     /* next, get RLC data */
-    start_meas(&mac->rlc_data_req);
+    start_meas(&candidate->UE->pcell->rlc_data_req);
     int sdus = 0;
 
     if (sched_ctrl->num_total_bytes > 0) {
@@ -1135,7 +1135,7 @@ static void generate_dl_mac_pdu(gNB_MAC_INST *mac,
       }
     }
 
-    stop_meas(&mac->rlc_data_req);
+    stop_meas(&candidate->UE->pcell->rlc_data_req);
 
     // Add padding header and zero rest out if there is space left
     if (bufEnd - buf > 0) {

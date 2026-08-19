@@ -1039,9 +1039,9 @@ void nr_rx_sdu(const module_id_t gnb_mod_idP,
   gNB_MAC_INST *gNB_mac = RC.nrmac[gnb_mod_idP];
   NR_SCHED_LOCK(&gNB_mac->sched_lock);
   nr_cell_sched_t *cell = nr_mac_get_cell_by_phy_id(gNB_mac, CC_idP);
-  start_meas(&gNB_mac->rx_ulsch_sdu);
+  start_meas(&cell->rx_ulsch_sdu);
   _nr_rx_sdu(gNB_mac, cell, frameP, slotP, rntiP, sduP, sdu_lenP, harq_pid, timing_advance, ul_cqi, rssi);
-  stop_meas(&gNB_mac->rx_ulsch_sdu);
+  stop_meas(&cell->rx_ulsch_sdu);
   NR_SCHED_UNLOCK(&gNB_mac->sched_lock);
 }
 
@@ -1603,11 +1603,11 @@ void handle_nr_srs_measurements(const module_id_t module_id,
       NR_UE_UL_BWP_t *current_BWP = &UE->current_UL_BWP;
       sched_ctrl->srs_feedback.sri = NR_SRS_SRI_0;
 
-      start_meas(&nrmac->nr_srs_ri_computation_timer);
+      start_meas(&cell->nr_srs_ri_computation_timer);
       nr_srs_ri_computation(&nr_srs_channel_iq_matrix, current_BWP, &sched_ctrl->srs_feedback.ul_ri);
-      stop_meas(&nrmac->nr_srs_ri_computation_timer);
+      stop_meas(&cell->nr_srs_ri_computation_timer);
 
-      start_meas(&nrmac->nr_srs_tpmi_computation_timer);
+      start_meas(&cell->nr_srs_tpmi_computation_timer);
       sched_ctrl->srs_feedback.tpmi = nr_srs_tpmi_estimation(current_BWP->pusch_Config,
                                                              current_BWP->transform_precoding,
                                                              nr_srs_channel_iq_matrix.channel_matrix,
@@ -1615,7 +1615,7 @@ void handle_nr_srs_measurements(const module_id_t module_id,
                                                              nr_srs_channel_iq_matrix.num_ue_srs_ports,
                                                              nr_srs_channel_iq_matrix.num_prgs,
                                                              sched_ctrl->srs_feedback.ul_ri);
-      stop_meas(&nrmac->nr_srs_tpmi_computation_timer);
+      stop_meas(&cell->nr_srs_tpmi_computation_timer);
 
       sprintf(stats->srs_stats, "UL-RI %d, TPMI %d", sched_ctrl->srs_feedback.ul_ri + 1, sched_ctrl->srs_feedback.tpmi);
 
