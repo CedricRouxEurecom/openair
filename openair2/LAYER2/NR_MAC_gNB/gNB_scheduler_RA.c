@@ -103,9 +103,6 @@ static int16_t ssb_index_from_prach(module_id_t module_idP,
 //Compute Total active SSBs and RO available
 void find_SSB_and_RO_available(gNB_MAC_INST *nrmac)
 {
-  /* already mutex protected through nr_mac_config_scc() */
-  //NR_SCHED_ENSURE_LOCKED(&nrmac->sched_lock);
-
   NR_COMMON_channels_t *cc = &nrmac->common_channels[0];
   NR_ServingCellConfigCommon_t *scc = cc->ServingCellConfigCommon;
   nfapi_nr_config_request_scf_t *cfg = &nrmac->config[0];
@@ -204,7 +201,6 @@ static void schedule_nr_MsgA_pusch(NR_UplinkConfigCommon_t *uplinkConfigCommon,
                                    uint16_t dmrs_TypeA_Position,
                                    NR_PhysCellId_t physCellId)
 {
-  NR_SCHED_ENSURE_LOCKED(&nr_mac->sched_lock);
 
   NR_MsgA_PUSCH_Resource_r16_t *msgA_PUSCH_Resource = uplinkConfigCommon->initialUplinkBWP->ext1->msgA_ConfigCommon_r16->choice
                                                           .setup->msgA_PUSCH_Config_r16->msgA_PUSCH_ResourceGroupA_r16;
@@ -321,8 +317,6 @@ static void fill_vrb(const frame_t frame,
 void schedule_nr_prach(module_id_t module_idP, frame_t frameP, slot_t slotP)
 {
   gNB_MAC_INST *gNB = RC.nrmac[module_idP];
-  /* already mutex protected: held in gNB_dlsch_ulsch_scheduler() */
-  NR_SCHED_ENSURE_LOCKED(&gNB->sched_lock);
 
   NR_COMMON_channels_t *cc = gNB->common_channels;
   NR_ServingCellConfigCommon_t *scc = cc->ServingCellConfigCommon;
@@ -2133,7 +2127,6 @@ bool nr_check_Msg4_MsgB_Ack(module_id_t module_id, frame_t frame, slot_t slot, N
  * The corresponding function to add is add_new_UE_RA(). */
 void nr_release_ra_UE(gNB_MAC_INST *mac, rnti_t rnti)
 {
-  NR_SCHED_ENSURE_LOCKED(&mac->sched_lock);
   NR_UEs_t *UE_info = &mac->UE_info;
   NR_UE_info_t *UE = remove_UE_from_list(NR_NB_RA_PROC_MAX, UE_info->access_ue_list, rnti);
   if (UE) {
@@ -2151,8 +2144,6 @@ void nr_schedule_RA(module_id_t module_idP,
                     nfapi_nr_tx_data_request_t *TX_req)
 {
   gNB_MAC_INST *mac = RC.nrmac[module_idP];
-  /* already mutex protected: held in gNB_dlsch_ulsch_scheduler() */
-  NR_SCHED_ENSURE_LOCKED(&mac->sched_lock);
 
   start_meas(&mac->schedule_ra);
   for (int CC_id = 0; CC_id < MAX_NUM_CCs; CC_id++) {

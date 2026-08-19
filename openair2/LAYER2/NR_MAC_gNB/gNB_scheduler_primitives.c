@@ -3231,8 +3231,6 @@ bool transition_ra_connected_nr_ue(gNB_MAC_INST *nr_mac, NR_UE_info_t *UE)
  * To remove the UE, use mac_remove_nr_ue(). */
 bool add_connected_nr_ue(gNB_MAC_INST *nr_mac, NR_UE_info_t *UE)
 {
-  NR_SCHED_ENSURE_LOCKED(&nr_mac->sched_lock);
-
   LOG_I(NR_MAC, "Adding new UE context with RNTI 0x%04x\n", UE->rnti);
   NR_UEs_t *UE_info = &nr_mac->UE_info;
   dump_nr_list(UE_info->connected_ue_list);
@@ -3307,8 +3305,6 @@ void reset_ul_harq_list(NR_UE_sched_ctrl_t *sched_ctrl) {
 
 void mac_remove_nr_ue(gNB_MAC_INST *nr_mac, rnti_t rnti)
 {
-  /* already mutex protected */
-  NR_SCHED_ENSURE_LOCKED(&nr_mac->sched_lock);
   NR_UEs_t *UE_info = &nr_mac->UE_info;
   NR_UE_info_t *UE = remove_UE_from_list(MAX_MOBILES_PER_GNB + 1, UE_info->connected_ue_list, rnti);
   if (UE)
@@ -3393,7 +3389,6 @@ void nr_csirs_scheduling(int Mod_idP, frame_t frame, slot_t slot, nfapi_nr_dl_tt
   NR_UEs_t *UE_info = &RC.nrmac[Mod_idP]->UE_info;
   gNB_MAC_INST *gNB_mac = RC.nrmac[Mod_idP];
   int n_slots_frame = gNB_mac->frame_structure.numb_slots_frame;
-  NR_SCHED_ENSURE_LOCKED(&gNB_mac->sched_lock);
 
   UE_info->sched_csirs = 0;
 
@@ -3670,7 +3665,6 @@ static void nr_mac_interrupt_ue_transmission(gNB_MAC_INST *mac, NR_UE_info_t *UE
 {
   DevAssert(mac != NULL);
   DevAssert(UE != NULL);
-  NR_SCHED_ENSURE_LOCKED(&mac->sched_lock);
 
   nr_timer_setup(&UE->UE_sched_ctrl.transm_interrupt, slots, 1);
   nr_timer_start(&UE->UE_sched_ctrl.transm_interrupt);
@@ -3687,8 +3681,6 @@ static void nr_mac_interrupt_ue_transmission(gNB_MAC_INST *mac, NR_UE_info_t *UE
 
 void nr_measgap_scheduling(gNB_MAC_INST *nr_mac, frame_t frame, sub_frame_t slot)
 {
-  NR_SCHED_ENSURE_LOCKED(&nr_mac->sched_lock);
-
   NR_UEs_t *UE_info = &nr_mac->UE_info;
   UE_iterator(UE_info->connected_ue_list, UE) {
     measgap_config_t *mgc = &UE->measgap_config;
@@ -3758,7 +3750,6 @@ static void nr_mac_ue_transmission_timeout(gNB_MAC_INST *mac, NR_UE_info_t *UE, 
 {
   DevAssert(mac != NULL);
   DevAssert(UE != NULL);
-  NR_SCHED_ENSURE_LOCKED(&mac->sched_lock);
 
   nr_timer_setup(&UE->UE_sched_ctrl.transm_timeout, slots, 1);
   nr_timer_start(&UE->UE_sched_ctrl.transm_timeout);
@@ -3801,8 +3792,6 @@ void nr_mac_trigger_release_complete(gNB_MAC_INST *mac, int rnti)
 
 void nr_mac_release_ue(gNB_MAC_INST *mac, int rnti)
 {
-  NR_SCHED_ENSURE_LOCKED(&mac->sched_lock);
-
   nr_rlc_remove_ue(rnti);
   mac_remove_nr_ue(mac, rnti);
 }
@@ -3822,9 +3811,6 @@ void beam_switching_procedure(gNB_MAC_INST *mac, NR_UE_info_t *UE, int new_beam_
 void nr_mac_update_timers(module_id_t module_id)
 {
   gNB_MAC_INST *mac = RC.nrmac[module_id];
-
-  /* already mutex protected: held in gNB_dlsch_ulsch_scheduler() */
-  NR_SCHED_ENSURE_LOCKED(&mac->sched_lock);
 
   NR_UEs_t *UE_info = &mac->UE_info;
   UE_iterator(UE_info->connected_ue_list, UE) {
@@ -4064,7 +4050,6 @@ void send_initial_ul_rrc_message(int rnti, const uint8_t *sdu, sdu_size_t sdu_le
 {
   gNB_MAC_INST *mac = RC.nrmac[0];
   NR_UE_info_t *UE = (NR_UE_info_t *)data;
-  NR_SCHED_ENSURE_LOCKED(&mac->sched_lock);
 
   uint8_t du2cu[1024];
   int encoded_len = 0;
@@ -4088,8 +4073,6 @@ void send_initial_ul_rrc_message(int rnti, const uint8_t *sdu, sdu_size_t sdu_le
 
 bool prepare_initial_ul_rrc_message(gNB_MAC_INST *mac, NR_UE_info_t *UE)
 {
-  NR_SCHED_ENSURE_LOCKED(&mac->sched_lock);
-
   /* activate SRB0 */
   if (!nr_rlc_activate_srb0(UE->rnti, UE, send_initial_ul_rrc_message))
     return false;

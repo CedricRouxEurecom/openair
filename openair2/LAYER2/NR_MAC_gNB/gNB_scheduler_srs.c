@@ -186,9 +186,6 @@ void nr_srs_ri_computation(const nfapi_nr_srs_normalized_channel_iq_matrix_t *nr
                            const NR_UE_UL_BWP_t *current_BWP,
                            uint8_t *ul_ri)
 {
-  /* already mutex protected: held in handle_nr_srs_measurements() */
-  NR_SCHED_ENSURE_LOCKED(&RC.nrmac[0]->sched_lock);
-
 #ifdef SRS_DEBUG
   LOG_I(NR_MAC, "num_gnb_antenna_elements = %i\n", nr_srs_normalized_channel_iq_matrix->num_gnb_antenna_elements);
   LOG_I(NR_MAC, "num_ue_srs_ports = %i\n", nr_srs_normalized_channel_iq_matrix->num_ue_srs_ports);
@@ -595,9 +592,6 @@ static bool nr_fill_nfapi_srs(gNB_MAC_INST *nrmac,
 void nr_schedule_periodic_srs(int module_id, frame_t frame, int slot)
  {
   gNB_MAC_INST *nrmac = RC.nrmac[module_id];
-
-  /* already mutex protected: held in gNB_dlsch_ulsch_scheduler() */
-  NR_SCHED_ENSURE_LOCKED(&nrmac->sched_lock);
 
   NR_UEs_t *UE_info = &nrmac->UE_info;
 

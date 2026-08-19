@@ -101,10 +101,6 @@ size_t dump_mac_stats(gNB_MAC_INST *gNB, char *output, size_t strlen, bool reset
   const char *begin = output;
   const char *end = output + strlen;
 
-  /* this function is called from gNB_dlsch_ulsch_scheduler(), so assumes the
-   * scheduler to be locked*/
-  NR_SCHED_ENSURE_LOCKED(&gNB->sched_lock);
-
   UE_iterator(gNB->UE_info.connected_ue_list, UE) {
     NR_UE_sched_ctrl_t *sched_ctrl = &UE->UE_sched_ctrl;
     NR_mac_stats_t *stats = &UE->mac_stats;

@@ -57,8 +57,6 @@ int nr_write_ce_dlsch_pdu(module_id_t module_idP,
                           unsigned char *ue_cont_res_id)
 {
   gNB_MAC_INST *gNB = RC.nrmac[module_idP];
-  /* already mutex protected: called below and in _RA.c */
-  NR_SCHED_ENSURE_LOCKED(&gNB->sched_lock);
 
   NR_MAC_SUBHEADER_FIXED *mac_pdu_ptr = (NR_MAC_SUBHEADER_FIXED *) mac_pdu;
   uint8_t last_size = 0;

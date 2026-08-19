@@ -1277,7 +1277,6 @@ bool nr_mac_add_test_ue(gNB_MAC_INST *nrmac, uint32_t rnti, NR_CellGroupConfig_t
 void nr_mac_prepare_ra_ue(gNB_MAC_INST *nrmac, NR_UE_info_t *UE)
 {
   DevAssert(nrmac != NULL);
-  NR_SCHED_ENSURE_LOCKED(&nrmac->sched_lock);
   NR_RA_t *ra = UE->ra;
   ra->cfra = true;
   NR_CellGroupConfig_t *CellGroup = UE->CellGroup;

@@ -173,9 +173,6 @@ static void schedule_pucch_core(gNB_MAC_INST *nrmac, NR_UE_info_t *UE, frame_t f
 
 void nr_schedule_pucch(gNB_MAC_INST *nrmac, frame_t frame, slot_t slot)
 {
-  /* already mutex protected: held in gNB_dlsch_ulsch_scheduler() */
-  NR_SCHED_ENSURE_LOCKED(&nrmac->sched_lock);
-
   if (!is_ul_slot(slot, &nrmac->frame_structure))
     return;
 
@@ -195,9 +192,6 @@ void nr_csi_meas_reporting(int Mod_idP,frame_t frame, slot_t slot)
   gNB_MAC_INST *nrmac = RC.nrmac[Mod_idP];
   const NR_ServingCellConfigCommon_t *scc = nrmac->common_channels[CC_id].ServingCellConfigCommon;
   const int NTN_gNB_Koffset = get_NTN_Koffset(scc);
-
-  /* already mutex protected: held in gNB_dlsch_ulsch_scheduler() */
-  NR_SCHED_ENSURE_LOCKED(&nrmac->sched_lock);
 
   UE_iterator(nrmac->UE_info.connected_ue_list, UE) {
     NR_UE_sched_ctrl_t *sched_ctrl = &UE->UE_sched_ctrl;
@@ -1316,9 +1310,6 @@ int nr_acknack_scheduling(gNB_MAC_INST *mac,
 
 void nr_sr_reporting(gNB_MAC_INST *nrmac, frame_t SFN, slot_t slot)
 {
-  /* already mutex protected: held in gNB_dlsch_ulsch_scheduler() */
-  NR_SCHED_ENSURE_LOCKED(&nrmac->sched_lock);
-
   if (!is_ul_slot(slot, &nrmac->frame_structure))
     return;
   const int CC_id = 0;

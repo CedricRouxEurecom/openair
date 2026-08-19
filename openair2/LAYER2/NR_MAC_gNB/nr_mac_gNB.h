@@ -36,12 +36,6 @@
     AssertFatal(rc == 0, "error while locking scheduler mutex, pthread_mutex_unlock() returned %d\n", rc); \
   } while (0)
 
-#define NR_SCHED_ENSURE_LOCKED(lock)\
-  do {\
-    int rc = pthread_mutex_trylock(lock); \
-    AssertFatal(rc == EBUSY, "this function should be called with the scheduler mutex locked, pthread_mutex_trylock() returned %d\n", rc);\
-  } while (0)
-
 /* Commmon */
 #include "COMMON/f1ap_messages_types.h"
 #include "common/platform_constants.h"

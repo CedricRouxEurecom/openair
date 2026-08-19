@@ -48,9 +48,6 @@ int check_sc_fdma_rbsize(long transform_precoding, uint16_t rb)
  * suitable TDA, and the function returns the number of suitable TDAs, or 0. */
 int get_num_ul_tda(gNB_MAC_INST *nrmac, int slot, int k2, const NR_tda_info_t **first_idx)
 {
-  /* we assume that this function is mutex-protected from outside */
-  NR_SCHED_ENSURE_LOCKED(&nrmac->sched_lock);
-
   const uint16_t ul_bitmap = get_ul_bitmap(&nrmac->frame_structure, slot);
   *first_idx = NULL;
   FOR_EACH_SEQ_ARR(NR_tda_info_t *, tda, &nrmac->ul_tda) {
@@ -2874,8 +2871,6 @@ void nr_ulsch_preprocessor(gNB_MAC_INST *nr_mac, post_process_pusch_t *pp_pusch)
 void nr_schedule_ulsch(module_id_t module_id, frame_t frame, slot_t slot, nfapi_nr_ul_dci_request_t *ul_dci_req)
 {
   gNB_MAC_INST *nr_mac = RC.nrmac[module_id];
-  /* already mutex protected: held in gNB_dlsch_ulsch_scheduler() */
-  NR_SCHED_ENSURE_LOCKED(&nr_mac->sched_lock);
 
   ul_dci_req->SFN = frame;
   ul_dci_req->Slot = slot;
