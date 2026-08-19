@@ -177,11 +177,15 @@ void nr_schedule_pucch(gNB_MAC_INST *nrmac, nr_cell_sched_t *cell, frame_t frame
     return;
 
   UE_iterator(nrmac->UE_info.access_ue_list, init_UE) {
+    if (init_UE->pcell != cell)
+      continue;
     if (init_UE->ra->ra_state == nrRA_WAIT_Msg4_MsgB_ACK)
       schedule_pucch_core(cell, nrmac, init_UE, frame, slot);
   }
 
   UE_iterator(nrmac->UE_info.connected_ue_list, UE) {
+    if (UE->pcell != cell)
+      continue;
     schedule_pucch_core(cell, nrmac, UE, frame, slot);
   }
 }
@@ -192,6 +196,8 @@ void nr_csi_meas_reporting(gNB_MAC_INST *nrmac, nr_cell_sched_t *cell, frame_t f
   const int NTN_gNB_Koffset = get_NTN_Koffset(scc);
 
   UE_iterator(nrmac->UE_info.connected_ue_list, UE) {
+    if (UE->pcell != cell)
+      continue;
     NR_UE_sched_ctrl_t *sched_ctrl = &UE->UE_sched_ctrl;
     NR_UE_UL_BWP_t *ul_bwp = &UE->current_UL_BWP;
     const int n_slots_frame = cell->frame_structure.numb_slots_frame;
@@ -600,7 +606,7 @@ static void evaluate_rsrp_report(NR_UE_info_t *UE,
       UE->beam_rsrp[r->resource_id] = r->RSRP;
 
   if (reportQuantity_type == NR_CSI_ReportConfig__reportQuantity_PR_ssb_Index_RSRP) {
-    NR_du_stats_t *du_stats = &RC.nrmac[0]->cells[0].du_stats;
+    NR_du_stats_t *du_stats = &UE->pcell->du_stats;
     for (RSRP_report_t *r = rsrp_report->r; r < rsrp_report->r + rsrp_report->nb; r++) {
       const int level = r->RSRP + 157;
       if (r->resource_id >= 0 && r->resource_id < NR_KPM_NB_SSB && level >= 0 && level < NR_KPM_SS_RSRP_NB_LEVELS)
@@ -1313,6 +1319,8 @@ void nr_sr_reporting(gNB_MAC_INST *nrmac, nr_cell_sched_t *cell, frame_t SFN, sl
   if (!is_ul_slot(slot, &cell->frame_structure))
     return;
   UE_iterator(nrmac->UE_info.connected_ue_list, UE) {
+    if (UE->pcell != cell)
+      continue;
     NR_UE_sched_ctrl_t *sched_ctrl = &UE->UE_sched_ctrl;
     NR_UE_UL_BWP_t *ul_bwp = &UE->current_UL_BWP;
     const int n_slots_frame = cell->frame_structure.numb_slots_frame;

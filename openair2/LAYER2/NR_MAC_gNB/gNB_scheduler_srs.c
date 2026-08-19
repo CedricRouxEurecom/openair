@@ -596,6 +596,8 @@ void nr_schedule_periodic_srs(gNB_MAC_INST *nrmac, nr_cell_sched_t *cell, frame_
   NR_UEs_t *UE_info = &nrmac->UE_info;
 
   UE_iterator(UE_info->connected_ue_list, UE) {
+    if (UE->pcell != cell)
+      continue;
     NR_UE_UL_BWP_t *current_BWP = &UE->current_UL_BWP;
 
     if (!nr_mac_ue_is_active(UE) && !get_softmodem_params()->phy_test) {

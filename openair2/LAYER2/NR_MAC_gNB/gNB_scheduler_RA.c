@@ -609,9 +609,12 @@ int nr_fill_successrar(const NR_UE_sched_ctrl_t *ue_sched_ctl,
 }
 
 /** @brief find UE with RA process for given preamble */
-static NR_UE_info_t *get_existing_ra(gNB_MAC_INST *nr_mac, uint16_t preamble_index)
+static NR_UE_info_t *get_existing_ra(gNB_MAC_INST *nr_mac, const nr_cell_sched_t* cell, uint16_t preamble_index)
 {
   UE_iterator(nr_mac->UE_info.access_ue_list, UE) {
+    if (UE->pcell != cell) {
+      continue;
+    }
     NR_RA_t *ra = UE->ra;
     for (int i = 0; i < ra->preambles.num_preambles; ++i) {
       if (ra->preambles.preamble_list[i] == preamble_index)
@@ -676,7 +679,7 @@ void nr_initiate_ra_proc(module_id_t module_idP,
   nr_cell_sched_t* cell = nr_mac_get_cell_by_phy_id(nr_mac, phy_id);
   NR_SCHED_LOCK(&nr_mac->sched_lock);
   /* check if preamble exists (NSA, HO cases) */
-  NR_UE_info_t *UE = get_existing_ra(nr_mac, preamble_index);
+  NR_UE_info_t *UE = get_existing_ra(nr_mac, cell, preamble_index);
   if ((get_softmodem_params()->nsa || get_softmodem_params()->do_ra) && !UE) {
     /* we are in NSA, but no UE has been configured => we ignore it */
     LOG_W(NR_MAC, "random access with preamble %d: no pre-configured RA process found\n", preamble_index);
@@ -695,7 +698,7 @@ void nr_initiate_ra_proc(module_id_t module_idP,
       return;
     }
 
-    UE = get_new_nr_ue_inst(&nr_mac->UE_info.uid_allocator, rnti, NULL, &cell->radio_config);
+    UE = get_new_nr_ue_inst(&nr_mac->UE_info.uid_allocator, rnti, NULL, cell);
     if (!add_new_UE_RA(nr_mac, UE)) {
       LOG_E(NR_MAC, "FAILURE: %4d.%2d initiating RA procedure for preamble index %d: no free RA process\n", frame, slot, preamble_index);
       delete_nr_ue_data(UE, &nr_mac->UE_info.uid_allocator);
@@ -2085,7 +2088,7 @@ bool nr_check_Msg4_MsgB_Ack(gNB_MAC_INST *nr_mac, nr_cell_sched_t *cell, frame_t
       if (UE->CellGroup) {
         // we configure the UE using common search space with DCIX0 while waiting for a reconfiguration
         configure_UE_BWP(cell, scc, UE, false, NR_SearchSpace__searchSpaceType_PR_common, -1, -1);
-        transition_ra_connected_nr_ue(nr_mac, cell, UE);
+        transition_ra_connected_nr_ue(nr_mac, UE);
       } else {  // in case of  UE reject
         nr_release_ra_UE(nr_mac, UE->rnti);
         return true;
@@ -2129,6 +2132,8 @@ void nr_schedule_RA(gNB_MAC_INST *mac,
 {
   start_meas(&mac->schedule_ra);
   UE_iterator(mac->UE_info.access_ue_list, UE) {
+    if (UE->pcell != cell)
+      continue;
     NR_RA_t *ra = UE->ra;
     if (ra->ra_state != nrRA_gNB_IDLE)
       LOG_D(NR_MAC, "UE %04x frame.slot %d.%d RA state: %d\n", UE->rnti, frameP, slotP, ra->ra_state);

@@ -538,7 +538,7 @@ static NR_UE_info_t *create_new_UE(gNB_MAC_INST *mac, nr_cell_sched_t *cell, uin
   f1_ue_data_t new_ue_data = {.secondary_ue = cu_id};
   bool success = du_add_f1_ue_data(rnti, &new_ue_data);
   DevAssert(success);
-  NR_UE_info_t *UE = get_new_nr_ue_inst(&mac->UE_info.uid_allocator, rnti, NULL, &cell->radio_config);
+  NR_UE_info_t *UE = get_new_nr_ue_inst(&mac->UE_info.uid_allocator, rnti, NULL, cell);
   AssertFatal(UE->uid < MAX_MOBILES_PER_GNB, "cannot create UE context, UE context setup failure not implemented\n");
 
   NR_CellGroupConfig_t *cellGroupConfig = NULL;
@@ -567,7 +567,7 @@ static NR_UE_info_t *create_new_UE(gNB_MAC_INST *mac, nr_cell_sched_t *cell, uin
   if (get_softmodem_params()->phy_test) {
     // phytest mode: we don't set up RA, etc
     free_and_zero(UE->ra); // test-mode: UE will not do RA
-    bool res = add_connected_nr_ue(mac, cell, UE);
+    bool res = add_connected_nr_ue(mac, UE);
     DevAssert(res);
   } else {
     if (!add_new_UE_RA(mac, UE)) {
@@ -1200,7 +1200,7 @@ void positioning_information_request(const f1ap_positioning_information_req_t *r
   gNB_MAC_INST *mac = RC.nrmac[0];
   NR_UE_info_t *UE = find_nr_UE(&mac->UE_info, req->gNB_DU_ue_id);
   NR_UE_UL_BWP_t *current_UL_BWP = &UE->current_UL_BWP;
-  NR_ServingCellConfigCommon_t *scc = mac->cells[0].common_channels.ServingCellConfigCommon;
+  NR_ServingCellConfigCommon_t *scc = UE->pcell->common_channels.ServingCellConfigCommon;
   if (current_UL_BWP->srs_Config) {
     resp.srs_configuration = calloc_or_fail(1, sizeof(*resp.srs_configuration));
     *resp.srs_configuration = cp_rrc_to_f1ap_srs_configuration(current_UL_BWP, scc);

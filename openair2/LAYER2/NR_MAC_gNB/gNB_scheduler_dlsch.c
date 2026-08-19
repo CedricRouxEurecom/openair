@@ -440,9 +440,10 @@ static int collect_dl_candidates(nr_cell_sched_t *cell,
   const float dl_slots_per_s = (float)get_dl_slots_per_period(fs) / fs->numb_slots_period * fs->numb_slots_frame * 100;
 
   UE_iterator (UE_list, UE) {
+    if (UE->pcell != cell)
+      continue;
     if (n >= max_candidates)
       break;
-
     /* Update EWMA and reset current_bytes before the active check so inactive
      * UEs don't get stuck with stale byte counts. */
     NR_mac_dir_stats_t *stats = &UE->mac_stats.dl;

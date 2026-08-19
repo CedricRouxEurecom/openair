@@ -3153,7 +3153,7 @@ static void init_bler_stats(const NR_bler_options_t *bler_options, NR_bler_stats
  * It will be typically added to the access_ue_list, but not always (e.g.,
  * phytest mode), so this is not done in this function (and also, to allow
  * error handling). Remove with delete_nr_ue_data().  */
-NR_UE_info_t *get_new_nr_ue_inst(uid_allocator_t *uia, rnti_t rnti, NR_CellGroupConfig_t *CellGroup, const nr_mac_config_t *config)
+NR_UE_info_t *get_new_nr_ue_inst(uid_allocator_t *uia, rnti_t rnti, NR_CellGroupConfig_t *CellGroup, nr_cell_sched_t *cell)
 {
   NR_UE_info_t *UE = calloc_or_fail(1, sizeof(NR_UE_info_t));
   for (int i = 0; i < MAX_NUM_OF_SSB; i++)
@@ -3161,10 +3161,12 @@ NR_UE_info_t *get_new_nr_ue_inst(uid_allocator_t *uia, rnti_t rnti, NR_CellGroup
   UE->uid = uid_linear_allocator_new(uia);
   UE->rnti = rnti;
   UE->CellGroup = CellGroup;
+  UE->pcell = cell;
   UE->ra = calloc(1, sizeof(*UE->ra));
   NR_UE_sched_ctrl_t *sched_ctrl = &UE->UE_sched_ctrl;
   sched_ctrl->ta_update = 31;
 
+  const nr_mac_config_t *config = &cell->radio_config;
   nr_mac_set_target_snrx10(&sched_ctrl->pucch_pc, config->pucch.target_snrx10);
   sched_ctrl->pucch_pc.avg_snr = config->pucch.target_snrx10 / 10.0f; // set initial SNR to what we would expect on average
   nr_mac_set_rssi_threshold(&sched_ctrl->pucch_pc, config->pucch.rssi_threshold);
@@ -3210,7 +3212,7 @@ NR_UE_info_t *remove_UE_from_list(int list_size, NR_UE_info_t *list[list_size], 
 
 /** @brief Transitions a UE from access list to connected list (i.e., the RA
  * list to the "normal" UE context list. */
-bool transition_ra_connected_nr_ue(gNB_MAC_INST *nr_mac, nr_cell_sched_t *cell, NR_UE_info_t *UE)
+bool transition_ra_connected_nr_ue(gNB_MAC_INST *nr_mac, NR_UE_info_t *UE)
 {
   NR_UEs_t *UE_info = &nr_mac->UE_info;
 
@@ -3220,13 +3222,13 @@ bool transition_ra_connected_nr_ue(gNB_MAC_INST *nr_mac, nr_cell_sched_t *cell, 
 
   free_and_zero(UE->ra);
 
-  return add_connected_nr_ue(nr_mac, cell, UE);
+  return add_connected_nr_ue(nr_mac, UE);
 }
 
 /** @brief Add a UE to the list of UEs in * connected mode.
  *
  * To remove the UE, use mac_remove_nr_ue(). */
-bool add_connected_nr_ue(gNB_MAC_INST *nr_mac, nr_cell_sched_t *cell, NR_UE_info_t *UE)
+bool add_connected_nr_ue(gNB_MAC_INST *nr_mac, NR_UE_info_t *UE)
 {
   LOG_I(NR_MAC, "Adding new UE context with RNTI 0x%04x\n", UE->rnti);
   NR_UEs_t *UE_info = &nr_mac->UE_info;
@@ -3243,15 +3245,15 @@ bool add_connected_nr_ue(gNB_MAC_INST *nr_mac, nr_cell_sched_t *cell, NR_UE_info
   NR_UE_sched_ctrl_t *sched_ctrl = &UE->UE_sched_ctrl;
   sched_ctrl->dl_max_mcs = 28; /* do not limit MCS for individual UEs */
   sched_ctrl->pdcch_cl_adjust = 0;
-  if (cell->radio_config.do_SRS == APERIODIC_SRS) {
+  if (UE->pcell->radio_config.do_SRS == APERIODIC_SRS) {
     nr_timer_setup(&sched_ctrl->aperiodic_srs_trigger, 160, 1); // for now aperiodic hardcoded every 160 slots
     nr_timer_start(&sched_ctrl->aperiodic_srs_trigger);
   }
   reset_srs_stats(UE);
 
   // Initialize bler_stats
-  init_bler_stats(&cell->dl_bler, &sched_ctrl->dl_bler_stats, nr_mac->frame);
-  init_bler_stats(&cell->ul_bler, &sched_ctrl->ul_bler_stats, nr_mac->frame);
+  init_bler_stats(&UE->pcell->dl_bler, &sched_ctrl->dl_bler_stats, nr_mac->frame);
+  init_bler_stats(&UE->pcell->ul_bler, &sched_ctrl->ul_bler_stats, nr_mac->frame);
 
   dump_nr_list(UE_info->connected_ue_list);
   return true;
@@ -3388,6 +3390,8 @@ void nr_csirs_scheduling(gNB_MAC_INST *gNB_mac, nr_cell_sched_t *cell, frame_t f
   UE_info->sched_csirs = 0;
 
   UE_iterator(UE_info->connected_ue_list, UE) {
+    if (UE->pcell != cell)
+      continue;
     NR_UE_DL_BWP_t *dl_bwp = &UE->current_DL_BWP;
 
     // CSI-RS is common to all UEs in a given BWP
@@ -3678,6 +3682,8 @@ void nr_measgap_scheduling(gNB_MAC_INST *nr_mac, const nr_cell_sched_t *cell, fr
 {
   NR_UEs_t *UE_info = &nr_mac->UE_info;
   UE_iterator(UE_info->connected_ue_list, UE) {
+    if (UE->pcell != cell)
+      continue;
     measgap_config_t *mgc = &UE->measgap_config;
     if (!mgc->enable)
       continue;
@@ -3808,6 +3814,8 @@ void nr_mac_update_timers(gNB_MAC_INST *mac, nr_cell_sched_t *cell)
 
   NR_UEs_t *UE_info = &mac->UE_info;
   UE_iterator(UE_info->connected_ue_list, UE) {
+    if (UE->pcell != cell)
+      continue;
     NR_UE_sched_ctrl_t *sched_ctrl = &UE->UE_sched_ctrl;
 
     if (nr_mac_check_release(sched_ctrl)) {

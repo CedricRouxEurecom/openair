@@ -778,7 +778,7 @@ static void nr_rx_ra_sdu(gNB_MAC_INST *mac,
     configure_UE_BWP(cell, scc, UE, false, ss_type, -1, -1);
     // initialize ta_frame in case there is no Msg3 received
     UE->UE_sched_ctrl.ta_frame = (frame + 100) % MAX_FRAME_NUMBER;
-    if (!transition_ra_connected_nr_ue(mac, cell, UE)) {
+    if (!transition_ra_connected_nr_ue(mac, UE)) {
       LOG_E(NR_MAC, "cannot add UE %04x: list is full\n", UE->rnti);
       delete_nr_ue_data(UE, &mac->UE_info.uid_allocator);
     } else {
@@ -2651,9 +2651,10 @@ static int collect_ul_candidates(gNB_MAC_INST *mac,
   const float ul_slots_per_s = (float)get_ul_slots_per_period(fs) / fs->numb_slots_period * fs->numb_slots_frame * 100;
 
   UE_iterator (UE_list, UE) {
+    if (UE->pcell != cell)
+      continue;
     if (numUE >= max_candidates)
       break;
-
     /* Per-slot UL goodput EWMA (bps) — update once per DL slot, called for up
      * to every UL slot. current_bytes was set by the previous slot's dispatch.
      * Slow EWMA (alpha=0.001) for stable display. */
@@ -2664,7 +2665,6 @@ static int collect_ul_candidates(gNB_MAC_INST *mac,
     stats->current_bytes = 0;
 
     NR_UE_sched_ctrl_t *sched_ctrl = &UE->UE_sched_ctrl;
-    /// TODO: in a follow up commit if UE in cell
     if (!nr_mac_ue_is_active(UE))
       continue;
 
