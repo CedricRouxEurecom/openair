@@ -1355,6 +1355,8 @@ static void rrc_handle_RRCSetupRequest(gNB_RRC_INST *rrc,
            rrcSetupRequest->ue_Identity.choice.randomValue.size);
 
     ue_context_p = rrc_gNB_create_ue_context(assoc_id, msg->crnti, rrc, random_value, msg->gNB_DU_ue_id);
+    if (!ue_context_p)
+      return;
   } else if (NR_InitialUE_Identity_PR_ng_5G_S_TMSI_Part1 == rrcSetupRequest->ue_Identity.present) {
     /* <5G-S-TMSI> = <AMF Set ID><AMF Pointer><5G-TMSI> 48-bit */
     /* ng-5G-S-TMSI-Part1                  BIT STRING (SIZE (39)) */
@@ -1369,7 +1371,8 @@ static void rrc_handle_RRCSetupRequest(gNB_RRC_INST *rrc,
     LOG_I(NR_RRC, "Received UE 5G-S-TMSI-Part1 %ld\n", s_tmsi_part1);
 
     ue_context_p = rrc_gNB_create_ue_context(assoc_id, msg->crnti, rrc, s_tmsi_part1, msg->gNB_DU_ue_id);
-    AssertFatal(ue_context_p != NULL, "out of memory\n");
+    if (!ue_context_p)
+      return;
     gNB_RRC_UE_t *UE = &ue_context_p->ue_context;
     UE->Initialue_identity_5g_s_TMSI.presence = true;
     UE->ng_5G_S_TMSI_Part1 = s_tmsi_part1;
@@ -1380,6 +1383,8 @@ static void rrc_handle_RRCSetupRequest(gNB_RRC_INST *rrc,
            rrcSetupRequest->ue_Identity.choice.randomValue.size);
 
     ue_context_p = rrc_gNB_create_ue_context(assoc_id, msg->crnti, rrc, random_value, msg->gNB_DU_ue_id);
+    if (!ue_context_p)
+      return;
     LOG_E(NR_RRC, "RRCSetupRequest without random UE identity or S-TMSI not supported, let's reject the UE %04x\n", msg->crnti);
     rrc_gNB_generate_RRCReject(rrc, ue_context_p);
     return;
@@ -1703,6 +1708,8 @@ fallback_rrc_setup:
     rrc_gNB_send_NGAP_UE_CONTEXT_RELEASE_REQ(0, ue_context_p, cause);
 
   rrc_gNB_ue_context_t *new = rrc_gNB_create_ue_context(assoc_id, msg->crnti, rrc, random_value, msg->gNB_DU_ue_id);
+  if (!new)
+    return;
   activate_srb(&new->ue_context, 1);
   added = rrc_update_ue_pcell(&new->ue_context, current_cell);
   DevAssert(added);
@@ -1987,6 +1994,11 @@ static void handle_ueCapabilityInformation(gNB_RRC_INST *rrc, gNB_RRC_UE_t *UE, 
     const NR_UE_CapabilityRAT_ContainerList_t *ue_CapabilityRAT_ContainerList =
         ue_cap_info->criticalExtensions.choice.ueCapabilityInformation->ue_CapabilityRAT_ContainerList;
 
+    if (!ue_CapabilityRAT_ContainerList) {
+      LOG_E(NR_RRC, "ue_CapabilityRAT_ContainerList is NULL, nothing to handle\n");
+      return;
+    }
+
     /* Encode UE-CapabilityRAT-ContainerList for sending to the DU */
     FREE_AND_ZERO_BYTE_ARRAY(UE->ue_cap_buffer);
     UE->ue_cap_buffer.len = uper_encode_to_new_buffer(&asn_DEF_NR_UE_CapabilityRAT_ContainerList,
@@ -1994,7 +2006,7 @@ static void handle_ueCapabilityInformation(gNB_RRC_INST *rrc, gNB_RRC_UE_t *UE, 
                                                       ue_CapabilityRAT_ContainerList,
                                                       (void **)&UE->ue_cap_buffer.buf);
     if (UE->ue_cap_buffer.len <= 0) {
-      LOG_E(RRC, "could not encode UE-CapabilityRAT-ContainerList, abort handling capabilities\n");
+      LOG_E(NR_RRC, "could not encode UE-CapabilityRAT-ContainerList, abort handling capabilities\n");
       return;
     }
     LOG_UE_UL_EVENT(UE, "Received UE capabilities\n");
