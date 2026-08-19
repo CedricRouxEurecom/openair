@@ -1311,3 +1311,14 @@ void rrc_CU_process_trp_information_failure(f1ap_trp_information_failure_t *f1ap
   LOG_I(NR_RRC, "Sending NRPPA_TRP_INFORMATION_FAILURE to TASK_NRPPA\n");
   itti_send_msg_to_task(TASK_NRPPA, 0, msg_fail);
 }
+
+void rrc_CU_process_positioning_measurement_failure(f1ap_positioning_measurement_failure_t *f1ap_msg)
+{
+  MessageDef *msg_fail = itti_alloc_new_message(TASK_RRC_GNB, 0, NRPPA_MEASUREMENT_FAILURE);
+  nrppa_measurement_failure_t *nrppa_msg = &NRPPA_MEASUREMENT_FAILURE(msg_fail);
+  nrppa_msg->transaction_id = f1ap_msg->transaction_id;
+  nrppa_msg->lmf_measurement_id = f1ap_msg->lmf_measurement_id;
+  nrppa_msg->cause = f1ap2nrppa_encode_cause(f1ap_msg->cause, f1ap_msg->cause_value);
+  LOG_I(NR_RRC, "Sending NRPPA_MEASUREMENT_FAILURE to TASK_NRPPA\n");
+  itti_send_msg_to_task(TASK_NRPPA, 0, msg_fail);
+}

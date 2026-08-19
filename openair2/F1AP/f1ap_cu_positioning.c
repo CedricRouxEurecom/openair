@@ -175,3 +175,19 @@ int CU_handle_POSITIONING_MEASUREMENT_RESPONSE(instance_t instance, sctp_assoc_t
   itti_send_msg_to_task(TASK_RRC_GNB, instance, msg_p);
   return 0;
 }
+
+int CU_handle_POSITIONING_MEASUREMENT_FAILURE(instance_t instance, sctp_assoc_t assoc_id, uint32_t stream, F1AP_F1AP_PDU_t *pdu)
+{
+  f1ap_positioning_measurement_failure_t fail = {0};
+  if (!decode_positioning_measurement_failure(pdu, &fail)) {
+    LOG_E(F1AP, "cannot decode F1 Positioning Measurement Failure\n");
+    free_positioning_measurement_failure(&fail);
+    return -1;
+  }
+
+  MessageDef *msg_p = itti_alloc_new_message(TASK_DU_F1, 0, F1AP_POSITIONING_MEASUREMENT_FAILURE);
+  msg_p->ittiMsgHeader.originInstance = assoc_id;
+  F1AP_POSITIONING_MEASUREMENT_FAILURE(msg_p) = fail;
+  itti_send_msg_to_task(TASK_RRC_GNB, instance, msg_p);
+  return 0;
+}

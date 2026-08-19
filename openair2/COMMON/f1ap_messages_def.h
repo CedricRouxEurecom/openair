@@ -79,3 +79,7 @@ MESSAGE_DEF(F1AP_POSITIONING_MEASUREMENT_RESP,
             MESSAGE_PRIORITY_MED,
             f1ap_positioning_measurement_resp_t,
             f1ap_positioning_measurement_resp)
+MESSAGE_DEF(F1AP_POSITIONING_MEASUREMENT_FAILURE,
+            MESSAGE_PRIORITY_MED,
+            f1ap_positioning_measurement_failure_t,
+            f1ap_positioning_measurement_failure)

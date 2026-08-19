@@ -152,3 +152,20 @@ int DU_send_POSITIONING_MEASUREMENT_RESPONSE(sctp_assoc_t assoc_id, f1ap_positio
   ASN_STRUCT_FREE(asn_DEF_F1AP_F1AP_PDU, pdu);
   return 0;
 }
+
+int DU_send_POSITIONING_MEASUREMENT_FAILURE(sctp_assoc_t assoc_id, f1ap_positioning_measurement_failure_t *fail)
+{
+  F1AP_F1AP_PDU_t *pdu = encode_positioning_measurement_failure(fail);
+
+  uint8_t *buffer = NULL;
+  uint32_t len = 0;
+  if (f1ap_encode_pdu(pdu, &buffer, &len) < 0) {
+    LOG_E(F1AP, "Failed to encode F1 Positioning Measurement Failure\n");
+    ASN_STRUCT_FREE(asn_DEF_F1AP_F1AP_PDU, pdu);
+    return -1;
+  }
+
+  f1ap_itti_send_sctp_data_req(assoc_id, buffer, len);
+  ASN_STRUCT_FREE(asn_DEF_F1AP_F1AP_PDU, pdu);
+  return 0;
+}

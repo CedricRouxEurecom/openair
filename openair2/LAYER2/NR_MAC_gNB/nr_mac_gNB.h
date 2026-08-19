@@ -796,6 +796,7 @@ typedef struct nr_mac_rrc_ul_if_s {
   positioning_information_response_func_t positioning_information_response;
   positioning_activation_response_func_t positioning_activation_response;
   positioning_measurement_response_func_t positioning_measurement_response;
+  positioning_measurement_failure_func_t positioning_measurement_failure;
 } nr_mac_rrc_ul_if_t;
 
 typedef struct measgap_config {

@@ -62,6 +62,7 @@
 #define F1AP_POSITIONING_ACTIVATION_RESP(mSGpTR) (mSGpTR)->ittiMsg.f1ap_positioning_activation_resp
 #define F1AP_POSITIONING_MEASUREMENT_REQ(mSGpTR) (mSGpTR)->ittiMsg.f1ap_positioning_measurement_req
 #define F1AP_POSITIONING_MEASUREMENT_RESP(mSGpTR) (mSGpTR)->ittiMsg.f1ap_positioning_measurement_resp
+#define F1AP_POSITIONING_MEASUREMENT_FAILURE(mSGpTR) (mSGpTR)->ittiMsg.f1ap_positioning_measurement_failure
 
 /* Length of the transport layer address string
  * 160 bits / 8 bits by char.

@@ -3864,6 +3864,10 @@ void *rrc_gnb_task(void *args_p)
         free_positioning_measurement_resp(&F1AP_POSITIONING_MEASUREMENT_RESP(msg_p));
         break;
 
+      case F1AP_POSITIONING_MEASUREMENT_FAILURE:
+        rrc_CU_process_positioning_measurement_failure(&F1AP_POSITIONING_MEASUREMENT_FAILURE(msg_p));
+        break;
+
       default:
         LOG_E(NR_RRC, "[gNB %ld] Received unexpected message %s\n", instance, msg_name_p);
         break;

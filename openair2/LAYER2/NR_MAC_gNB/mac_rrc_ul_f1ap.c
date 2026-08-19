@@ -159,6 +159,13 @@ static void positioning_measurement_response_f1ap(const f1ap_positioning_measure
   itti_send_msg_to_task(TASK_DU_F1, 0, msg);
 }
 
+static void positioning_measurement_failure_f1ap(const f1ap_positioning_measurement_failure_t *fail)
+{
+  MessageDef *msg = itti_alloc_new_message(TASK_MAC_GNB, 0, F1AP_POSITIONING_MEASUREMENT_FAILURE);
+  F1AP_POSITIONING_MEASUREMENT_FAILURE(msg) = cp_positioning_measurement_failure(fail);
+  itti_send_msg_to_task(TASK_DU_F1, 0, msg);
+}
+
 void mac_rrc_ul_f1ap_init(struct nr_mac_rrc_ul_if_s *mac_rrc)
 {
   mac_rrc->f1_reset = f1_reset_du_initiated_f1ap;
@@ -176,5 +183,6 @@ void mac_rrc_ul_f1ap_init(struct nr_mac_rrc_ul_if_s *mac_rrc)
   mac_rrc->positioning_information_response = positioning_information_response_f1ap;
   mac_rrc->positioning_activation_response = positioning_activation_response_f1ap;
   mac_rrc->positioning_measurement_response = positioning_measurement_response_f1ap;
+  mac_rrc->positioning_measurement_failure = positioning_measurement_failure_f1ap;
 }
 

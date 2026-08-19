@@ -26,6 +26,7 @@ typedef void (*trp_information_failure_func_t)(const f1ap_trp_information_failur
 typedef void (*positioning_information_response_func_t)(const f1ap_positioning_information_resp_t *resp);
 typedef void (*positioning_activation_response_func_t)(const f1ap_positioning_activation_resp_t *resp);
 typedef void (*positioning_measurement_response_func_t)(const f1ap_positioning_measurement_resp_t *resp);
+typedef void (*positioning_measurement_failure_func_t)(const f1ap_positioning_measurement_failure_t *failure);
 
 struct nr_mac_rrc_ul_if_s;
 void mac_rrc_ul_direct_init(struct nr_mac_rrc_ul_if_s *mac_rrc);
