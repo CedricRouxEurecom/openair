@@ -16,6 +16,7 @@
 #define NRPPA_POSITIONING_ACTIVATION_RESP(mSGpTR) (mSGpTR)->ittiMsg.nrppa_positioning_activation_resp
 #define NRPPA_MEASUREMENT_REQ(mSGpTR) (mSGpTR)->ittiMsg.nrppa_measurement_req
 #define NRPPA_MEASUREMENT_RESP(mSGpTR) (mSGpTR)->ittiMsg.nrppa_measurement_resp
+#define NRPPA_MEASUREMENT_FAILURE(mSGpTR) (mSGpTR)->ittiMsg.nrppa_measurement_failure
 
 /* Structure of Positioning related NRPPA messages */
 /* IE structures for Positioning related messages as per TS 38.455 V16.7.1*/
@@ -823,5 +824,14 @@ typedef struct nrppa_measurement_resp_s {
   // (optional)
   nrppa_measurement_response_list_t *measurement_response_list;
 } nrppa_measurement_resp_t;
+
+typedef struct nrppa_measurement_failure_s {
+  // IE 9.2.4 (mandatory)
+  uint16_t transaction_id;
+  // (mandatory)
+  uint32_t lmf_measurement_id;
+  // IE 9.2.1 (mandatory)
+  nrppa_cause_t cause;
+} nrppa_measurement_failure_t;
 
 #endif // NRPPA_MESSAGES_TYPES_H_

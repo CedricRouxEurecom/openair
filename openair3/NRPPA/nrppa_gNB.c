@@ -57,6 +57,9 @@ void *nrppa_gNB_process_itti_msg(void *notUsed)
       case NRPPA_MEASUREMENT_RESP:
         nrppa_gNB_measurement_response(instance, received_msg);
         break;
+      case NRPPA_MEASUREMENT_FAILURE:
+        nrppa_gNB_measurement_failure(instance, received_msg);
+        break;
       default:
         LOG_E(NRPPA, "Received unhandled message: %d:%s\n", ITTI_MSG_ID(received_msg), ITTI_MSG_NAME(received_msg));
         break;
