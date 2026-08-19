@@ -55,6 +55,7 @@
 
 #define F1AP_TRP_INFORMATION_REQ(mSGpTR) (mSGpTR)->ittiMsg.f1ap_trp_information_req
 #define F1AP_TRP_INFORMATION_RESP(mSGpTR) (mSGpTR)->ittiMsg.f1ap_trp_information_resp
+#define F1AP_TRP_INFORMATION_FAILURE(mSGpTR) (mSGpTR)->ittiMsg.f1ap_trp_information_failure
 #define F1AP_POSITIONING_INFORMATION_REQ(mSGpTR) (mSGpTR)->ittiMsg.f1ap_positioning_information_req
 #define F1AP_POSITIONING_INFORMATION_RESP(mSGpTR) (mSGpTR)->ittiMsg.f1ap_positioning_information_resp
 #define F1AP_POSITIONING_ACTIVATION_REQ(mSGpTR) (mSGpTR)->ittiMsg.f1ap_positioning_activation_req

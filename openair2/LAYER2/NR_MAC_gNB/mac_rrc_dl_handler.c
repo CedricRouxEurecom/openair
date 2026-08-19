@@ -1149,6 +1149,9 @@ void trp_information_request(const f1ap_trp_information_req_t *req)
   positioning_config_t *positioning_config = mac->positioning_config;
   if (positioning_config == NULL) {
     LOG_E(NR_PHY, "No TRPs configured for positioning in the configuration file\n");
+    f1ap_trp_information_failure_t fail = {.transaction_id = req->transaction_id};
+    fail.cause = F1AP_CAUSE_RADIO_NETWORK;
+    mac->mac_rrc.trp_information_failure(&fail);
     return;
   }
   uint8_t NumTRPs = positioning_config->num_trp;
