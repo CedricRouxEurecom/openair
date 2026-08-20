@@ -52,6 +52,14 @@ up3:
   IF: wwan0
   MTU: 1500
 
+up4:
+  Host: up4
+  AttachScript: sudo /opt/mbim-fhi72/start_quectel_mbim.sh
+  DetachScript: sudo /opt/mbim-fhi72/stop_quectel_mbim.sh
+  NetworkScript: ip a show dev wwan0
+  IF: wwan0
+  MTU: 1500
+
 adb_ue_1:
   Host: nano
   InitScript: /home/oaicicd/ci_ctl_adb.sh initialize R3CM40LZPHT
