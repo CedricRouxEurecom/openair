@@ -193,3 +193,9 @@ Using MCS 27 with 273 PRBs and 2x2 MIMO (`-W2 -y2 -z2`).
 ```bash
 ./nr_ulsim -n100 -s40 -m27 -R273 -r273 -W2 -y2 -z2 -P --loader.ldpc.shlibversion _cuda
 ```
+
+## E2E Test
+
+For instructions on running an end-to-end test, please refer to [the
+corresponding tutorial](../../../../../doc/NR_SA_Tutorial_OAI_nrUE_GPU_offload.md).
+
