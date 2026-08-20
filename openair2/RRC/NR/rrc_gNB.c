@@ -3843,6 +3843,10 @@ void *rrc_gnb_task(void *args_p)
         free_trp_information_resp(&F1AP_TRP_INFORMATION_RESP(msg_p));
         break;
 
+      case F1AP_TRP_INFORMATION_FAILURE:
+        rrc_CU_process_trp_information_failure(&F1AP_TRP_INFORMATION_FAILURE(msg_p));
+        break;
+
       case NRPPA_POSITIONING_INFORMATION_REQ:
         rrc_gNB_process_positioning_information_request(RC.nrrrc[instance], &NRPPA_POSITIONING_INFORMATION_REQ(msg_p));
         break;
@@ -3870,6 +3874,10 @@ void *rrc_gnb_task(void *args_p)
       case F1AP_POSITIONING_MEASUREMENT_RESP:
         rrc_CU_process_positioning_measurement_response(&F1AP_POSITIONING_MEASUREMENT_RESP(msg_p));
         free_positioning_measurement_resp(&F1AP_POSITIONING_MEASUREMENT_RESP(msg_p));
+        break;
+
+      case F1AP_POSITIONING_MEASUREMENT_FAILURE:
+        rrc_CU_process_positioning_measurement_failure(&F1AP_POSITIONING_MEASUREMENT_FAILURE(msg_p));
         break;
 
       default:
