@@ -334,17 +334,12 @@ You might also want to consult TS 38.401 regarding the message exchange.
 | Incoming F1 message | MAC handler | Comments |
 |---------------------|-------------|----------|
 | F1 Setup Response | `f1_setup_response()` | the DU does not start the radio before receiving this message |
-| DL RRC Message Transfer | `dl_rrc_message_transfer()` | Processing timer started if reconfiguration is present[^footnote-reconfig] |
+| DL RRC Message Transfer | `dl_rrc_message_transfer()` | Reestablishment if old-gNB-DU-UE-ID present |
 | UE Context Setup Request | `ue_context_setup_request()` | |
 | UE Context Modification Request | `ue_context_modification_request()` | |
 | UE Context Modification Confirm | `ue_context_modification_confirm()` | |
 | UE Context Modification Refuse | `ue_context_modification_refuse()` | Will trigger release request |
 | UE Context Release Command | `ue_context_release_command()` | Starts timer for release if UE in sync |
-
-[^footnote-reconfig]: The DU does not decode RRC messages, and does not know
-  whether an RRC message is a reconfiguration. However, the spec mandates that
-  a reconfiguration has to be triggered if the CU receives a CellGroupConfig,
-  originating at the DU. See also flag `expect_reconfiguration`.
 
 ### F1-U messages
 
