@@ -86,83 +86,60 @@ same ITTI message to the RRC task as done directly in the monolithic case.
 
 Summary of callbacks and handlers:
 
-| Entity | Callback definition | Callback F1 Implementation | Callback Monolithic SA Implementation | Handler              |
-|--------|---------------------|----------------------------|---------------------------------------|----------------------|
-| CU/RRC | `mac_rrc_dl.h`      | `mac_rrc_dl_f1ap.c`        | `mac_rrc_dl_direct.c`                 |No handler (use ITTI) |
-| DU/MAC | `mac_rrc_ul.h`      | `mac_rrc_ul_f1ap.c`        | `mac_rrc_ul_direct.c`                 |`mac_rrc_dl_handler.c`|
+| Direction | Callback definition | Callback F1 Implementation | Callback Monolithic SA Implementation | Handler              |
+|-----------|---------------------|----------------------------|---------------------------------------|----------------------|
+| CU -> DU  | `mac_rrc_dl.h`      | `mac_rrc_dl_f1ap.c`        | `mac_rrc_dl_direct.c`                 |ITTI handler RRC      |
+| DU -> CU  | `mac_rrc_ul.h`      | `mac_rrc_ul_f1ap.c`        | `mac_rrc_ul_direct.c`                 |`mac_rrc_dl_handler.c`|
 
-A sequence diagram for downlink F1AP messages over the OAI CU/DU functional split:
-
-```mermaid
-sequenceDiagram
-    box rgba(17,158,189,255) CU/RRC
-    participant TASK_RRC_GNB
-    participant TASK_CU_F1
-    end
-    Note over TASK_RRC_GNB: MAC/RRC callback
-    TASK_RRC_GNB->>+TASK_CU_F1: F1AP message (ITTI)
-    Note over TASK_CU_F1: F1 message encoding
-    Note over TASK_CU_F1: ASN.1 encoding
-    box Grey DU/MAC
-    participant TASK_DU_F1
-    participant MAC
-    end
-    Note over TASK_DU_F1: F1AP DL message handler
-    TASK_CU_F1->>+TASK_DU_F1: SCTP (ITTI)
-    Note over TASK_DU_F1: F1 message decoding
-    Note over TASK_DU_F1: ASN.1 decoding
-    TASK_DU_F1->>+MAC: F1AP message (function call)
-    Note over MAC: MAC DL message handler
-```
-and for the uplink F1AP messages:
+A sequence diagram for downlink F1AP messages on the example of a "DL RRC
+message transfer" (from CU to DU):
 
 ```mermaid
 sequenceDiagram
-    box rgba(17,158,189,255) CU/RRC
-    participant TASK_RRC_GNB
-    participant TASK_CU_F1
+    participant rrc as TASK_RRC_GNB (CU)
+    participant f1_cu as TASK_CU_F1 (CU)
+
+    participant f1_du as TASK_DU_F1 (DU)
+    participant mac as MAC (DU)
+
+    Note over rrc: callback dl_rrc_message_transfer
+    alt Deployment Monolithic (all in one)
+        Note over rrc: dl_rrc_message_transfer_direct()
+        rrc->>+mac: direct call into MAC
+    else
+        Note over rrc: dl_rrc_message_transfer_f1ap()
+        rrc->>+f1_cu: ITTI msg F1AP_DL_RRC_MESSAGE
+        Note over f1_cu: CU_send_DL_RRC_MESSAGE_TRANSFER()
+        f1_cu->>+f1_du: send ASN.1 encoded data over SCTP socket
+        Note over f1_du: DU_handle_DL_RRC_MESSAGE_TRANSFER()
+        f1_du->>+mac: direct call into MAC
     end
-    box Grey DU/MAC
-    participant TASK_DU_F1
-    participant TASK_MAC_GNB
-    end
-    Note over TASK_MAC_GNB: MAC/RRC callback
-    TASK_MAC_GNB->>+TASK_DU_F1: F1AP message (ITTI)
-    Note over TASK_DU_F1: F1 message encoding
-    Note over TASK_DU_F1: ASN.1 encoding
-    Note over TASK_CU_F1: F1AP UL message handler
-    TASK_DU_F1->>+TASK_CU_F1: SCTP (ITTI)
-    Note over TASK_CU_F1: F1 message decoding
-    Note over TASK_CU_F1: ASN.1 decoding
-    TASK_CU_F1->>+TASK_RRC_GNB: F1AP message (ITTI)
+    Note over mac: dl_rrc_message_transfer() (puts into RLC)
 ```
 
-Alternative sequence handling (e.g. Monolithic), for downlink:
+and for the uplink F1AP messages on the example of a "Initial UL RRC message
+transfer" (from DU to CU):
 
 ```mermaid
 sequenceDiagram
-    box rgba(17,158,189,255) RRC
-    participant TASK_RRC_GNB
-    end
-    Note over TASK_RRC_GNB: mac_rrc_dl_direct.c callback
-    box Grey MAC
-    participant TASK_MAC_GNB
-    end
-    TASK_RRC_GNB->>+TASK_MAC_GNB: raw F1AP message
-    Note over TASK_MAC_GNB: mac_rrc_dl_handler.c
-```
-and for the uplink:
+    participant mac as MAC (DU)
+    participant f1_du as TASK_DU_F1 (DU)
+    participant f1_cu as TASK_CU_F1 (CU)
+    participant rrc as TASK_RRC_GNB (CU)
 
-```mermaid
-sequenceDiagram
-    box rgba(17,158,189,255) RRC
-    participant TASK_RRC_GNB
+    Note over mac: callback initial_ul_rrc_message_transfer
+    alt Deployment Monolithic (all in one)
+        Note over mac: initial_ul_rrc_message_transfer_direct()
+        mac->>rrc: ITTI msg F1AP_INITIAL_UL_RRC_MESSAGE
+    else
+        Note over mac: initial_ul_rrc_message_transfer_f1ap()
+        mac->>+f1_du: ITTI msg F1AP_INITIAL_UL_RRC_MESSAGE
+        Note over f1_du: initial_ul_rrc_message_transfer_f1ap()
+        f1_du->>+f1_cu: send ASN.1 encoded data over SCTP socket
+        Note over f1_cu: CU_handle_INITIAL_UL_RRC_MESSAGE_TRANSFER()
+        f1_cu->>+rrc: ITTI msg F1AP_INITIAL_UL_RRC_MESSAGE
     end
-    box Grey MAC
-    participant TASK_MAC_GNB
-    end
-    Note over TASK_MAC_GNB: mac_rrc_ul_direct.c callback
-    TASK_MAC_GNB->>+TASK_RRC_GNB: raw F1AP message (ITTI)
+    Note over rrc: handle F1AP_INITIAL_UL_RRC_MESSAGE<br/>rrc_gNB_process_initial_ul_rrc_message()
 ```
 
 ### F1-U
