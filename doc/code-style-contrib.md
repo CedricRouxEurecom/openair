@@ -165,16 +165,27 @@ general free-form format is (from the documentation):
 This means that the trimmed <key> and <value> will be separated by ": " (one colon followed by one space).
 ```
 
-### AI Assistants
+### AI and Coding Assistants
 
-These guidelines are mostly based on [linux kernel
+This section provides guidance for AI tools and developers using AI assistance
+when contributing to the respository.  Some of it is based on the [linux kernel
 guidelines](https://docs.kernel.org/process/coding-assistants.html)
 
-This document provides guidance for AI tools and developers using AI assistance
-when contributing to the respository.
+You may use AI assistants, but it has to be done responsibly. In particular,
+this means that you must check any AI/LLM output for correctness, that you
+should shorten output to acceptable levels (on the order of what a human would
+write), and it must fit in the context of the current discussion. For instance,
+in a code review, don't post LLM output verbatim, don't repeat what has already
+been said, and comment on the particular code place. Example code showing an
+alternative approach written by an LLM is acceptable if it does not go beyond
+the scope of what a human can write. In an ongoing discussion, don't overwhelm
+the other parties with large swaths of text. In a bug report, LLM-written text
+is acceptable as long as it is correct, concise, and on point. In summary, you
+should curate the output of AI in general and LLMs in particular to make it
+digestible to a human.
 
 AI tools helping with openairinterface development should follow the standard
-openairinterface developement procedure. They should comply with Duranta OAI’s
+openairinterface development procedure. They should comply with Duranta’s
 licensing requirements:
 
 - All code must be compatible with CSSL v1.0
