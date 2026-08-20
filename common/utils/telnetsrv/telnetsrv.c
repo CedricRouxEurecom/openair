@@ -494,16 +494,20 @@ char *get_time(char *buff,int bufflen) {
   strftime (buff, bufflen, "%Y-%m-%d %H:%M:%S.000", localtime_r(&now,&tmstruct));
   return buff;
 }
-void telnet_pushcmd(telnetshell_cmddef_t *cmd, char *cmdbuff, telnet_printfunc_t prnt)
+static void telnet_pushcmd_key(telnetshell_cmddef_t *cmd, char *cmdbuff, telnet_printfunc_t prnt, notifiedFIFO_t *respq, uint64_t key)
 {
-  notifiedFIFO_elt_t *msg = newNotifiedFIFO_elt(sizeof(telnetsrv_qmsg_t), 0, NULL, NULL);
+  notifiedFIFO_elt_t *msg = newNotifiedFIFO_elt(sizeof(telnetsrv_qmsg_t), key, respq, NULL);
   telnetsrv_qmsg_t *cmddata = NotifiedFifoData(msg);
   cmddata->cmdfunc = (qcmdfunc_t)cmd->cmdfunc;
   cmddata->prnt = prnt;
   cmddata->debug = telnetparams.telnetdbg;
-  if (cmdbuff != NULL)
-    cmddata->cmdbuff = strdup(cmdbuff);
+  cmddata->cmdbuff = cmdbuff != NULL ? strdup(cmdbuff) : NULL;
   pushNotifiedFIFO(cmd->qptr, msg);
+}
+
+void telnet_pushcmd(telnetshell_cmddef_t *cmd, char *cmdbuff, telnet_printfunc_t prnt)
+{
+  telnet_pushcmd_key(cmd, cmdbuff, prnt, NULL, 0);
 }
 
 int process_command(char *buf)
@@ -563,7 +567,7 @@ int process_command(char *buf)
             if (telnetparams.CmdParsers[i].cmd[k].cmdflags & TELNETSRV_CMDFLAG_WEBSRVONLY)
               continue;
             if (telnetparams.CmdParsers[i].cmd[k].qptr != NULL) {
-              telnet_pushcmd(&(telnetparams.CmdParsers[i].cmd[k]), (cmdb != NULL) ? strdup(cmdb) : NULL, client_printf);
+              telnet_pushcmd(&(telnetparams.CmdParsers[i].cmd[k]), cmdb, client_printf);
             } else {
               telnetparams.CmdParsers[i].cmd[k].cmdfunc(cmdb, telnetparams.telnetdbg, client_printf);
             }
