@@ -208,7 +208,7 @@ static void nr_dlsch_extract_rbs(uint32_t rxdataF_sz,
   while (find_next_rb_block(freq_alloc->bitmap, dlsch_config->BWPSize, &pos, &block_start, &block_end)) {
     int start_rb = block_start + dlsch_config->BWPStart;
     int nb_rb = block_end - block_start + 1;
-    const int start_re = (fp->first_carrier_offset + start_rb * NR_NB_SC_PER_RB) % fp->ofdm_symbol_size;
+    const int start_re = CIRCULAR_INC(fp->first_carrier_offset, start_rb * NR_NB_SC_PER_RB, fp->ofdm_symbol_size);
     for (int aarx = 0; aarx < fp->nb_antennas_rx; aarx++) {
       c16_t *rxF_ext = rxdataF_ext[aarx] + offset;
       c16_t *rxF = &rxdataF[aarx][symbol * fp->ofdm_symbol_size];
@@ -240,9 +240,7 @@ static void nr_dlsch_extract_rbs(uint32_t rxdataF_sz,
                 dl_ch0_ext[j] = dl_ch0[re];
                 j++;
               }
-              k++;
-              if (k >= fp->ofdm_symbol_size)
-                k -= fp->ofdm_symbol_size;
+              k = CIRCULAR_INC(k, 1, fp->ofdm_symbol_size);
             }
             dl_ch0 += 12;
           }
