@@ -1219,26 +1219,28 @@ static void rfsimulator_read_internal(rfsimulator_state_t *t,
           rxAddInput(input, temp_array[aarx], aarx, ptr->channel_model, nsamps);
         }
       } else {
+        // Apply propagation delay
+        const int64_t read_timestamp = timestamp - t->chan_offset;
         // Assume received_packets is ordered by timestamp
         std::queue<rfsim_packet_t *> packets_copy = ptr->received_packets;
         while (!packets_copy.empty()) {
           rfsim_packet_t *pkt = packets_copy.front();
-          if (static_cast<int64_t>(pkt->header.timestamp + pkt->header.size) <= timestamp) {
+          if (static_cast<int64_t>(pkt->header.timestamp + pkt->header.size) <= read_timestamp) {
             // This packet is before the start timestamp, discard it
             packets_copy.pop();
             continue;
           }
-          if (static_cast<int64_t>(pkt->header.timestamp) > timestamp + nsamps) {
+          if (static_cast<int64_t>(pkt->header.timestamp) > read_timestamp + nsamps) {
             // This packet is after the end of the buffer, stop processing
             break;
           }
 
           // The beams transmitted in are ordered by beam index
           uint16_t *tx_beams = (uint16_t *)pkt->payload;
-          uint64_t overlap_start = std::max(timestamp, static_cast<int64_t>(pkt->header.timestamp));
-          uint64_t overlap_end = std::min(timestamp + nsamps, static_cast<int64_t>(pkt->header.timestamp + pkt->header.size));
-          int write_start_idx = overlap_start - timestamp;
-          int write_end_idx = overlap_end - timestamp;
+          uint64_t overlap_start = std::max(read_timestamp, static_cast<int64_t>(pkt->header.timestamp));
+          uint64_t overlap_end = std::min(read_timestamp + nsamps, static_cast<int64_t>(pkt->header.timestamp + pkt->header.size));
+          int write_start_idx = overlap_start - read_timestamp;
+          int write_end_idx = overlap_end - read_timestamp;
           int read_start_idx = overlap_start - pkt->header.timestamp;
           c16_t *buffer = (c16_t *)&pkt->payload[sizeof(uint16_t) * pkt->header.nbAnt];
 
