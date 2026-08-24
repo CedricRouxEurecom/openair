@@ -183,7 +183,7 @@ void dump_pusch_stats(FILE *fd, PHY_VARS_gNB *gNB)
       int *rt = stats->ulsch_stats.round_trials;
       fprintf(fd,
               "                 round_trials %d(%1.1e):%d(%1.1e):%d(%1.1e):%d, DTX %d, current_Qm %d, current_RI %d, total_bytes "
-              "RX/SCHED %d/%d\n",
+              "RX/SCHED %d/%lu\n",
               rt[0],
               (double)rt[1] / rt[0],
               rt[1],

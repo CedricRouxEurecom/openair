@@ -895,7 +895,7 @@ void dump_pdsch_stats(FILE *fd, PHY_VARS_gNB *gNB)
     if (stats->active && stats->frame != stats->dlsch_stats.dump_frame) {
       stats->dlsch_stats.dump_frame = stats->frame;
       fprintf(fd,
-              "DLSCH RNTI %x: current_Qm %d, current_RI %d, total_bytes TX %d\n",
+              "DLSCH RNTI %x: current_Qm %d, current_RI %d, total_bytes TX %lu\n",
               stats->rnti,
               stats->dlsch_stats.current_Qm,
               stats->dlsch_stats.current_RI,
