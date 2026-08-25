@@ -398,6 +398,7 @@ typedef struct puschSymbolProc_s {
   NR_gNB_PUSCH **pusch_vars_group;
   int16_t **scrambling_sequences;
   int *layer_offsets;
+  int layers_attenuation;
 } puschSymbolProc_t;
 
 static void nr_pusch_symbol_processing(void *arg)
@@ -428,7 +429,7 @@ static void nr_pusch_symbol_processing(void *arg)
              llrss,
              soffset,
              symbol,
-             pusch_vars->log2_maxh,
+             pusch_vars->log2_maxh + rdata->layers_attenuation,
              rdata->nvar,
              rdata->rxFext_slot_mem,
              rdata->pusch_ch_est_dmrs_interpl_slot_mem,
@@ -775,8 +776,8 @@ int nr_rx_pusch_group_tp(PHY_VARS_gNB *gNB,
     dmrs_symbol = get_valid_dmrs_idx_for_channel_est(rel15_ul_ref->ul_dmrs_symb_pos, meas_symbol);
   else // average of channel estimates stored in first symbol
     dmrs_symbol = get_next_dmrs_symbol_in_slot(rel15_ul_ref->ul_dmrs_symb_pos, rel15_ul_ref->start_symbol_index, end_symbol);
-  int size_est = nb_re_pusch * frame_parms->symbols_per_slot;
-  __attribute__((aligned(32))) int ul_ch_estimates_ext[total_layers * num_sp_streams][size_est];
+  int size_est = ceil_mod(nb_re_pusch * frame_parms->symbols_per_slot, 16);
+  __attribute__((aligned(64))) c16_t ul_ch_estimates_ext[total_layers][num_sp_streams][size_est];
   memset(ul_ch_estimates_ext, 0, sizeof(ul_ch_estimates_ext));
   int buffer_length = rel15_ul_ref->rb_size * NR_NB_SC_PER_RB;
   c16_t temp_rxFext[num_sp_streams][buffer_length] __attribute__((aligned(32)));
@@ -786,7 +787,7 @@ int nr_rx_pusch_group_tp(PHY_VARS_gNB *gNB,
       nr_ulsch_extract_rbs(gNB->common_vars.rxdataF[ant_port_start + aarx] + soffset + meas_symbol * frame_parms->ofdm_symbol_size,
                            (c16_t *)joint_pv->ul_ch_estimates[nl * num_sp_streams + aarx],
                            temp_rxFext[aarx],
-                           (c16_t *)&ul_ch_estimates_ext[nl * num_sp_streams + aarx][meas_symbol * nb_re_pusch],
+                           &ul_ch_estimates_ext[nl][aarx][meas_symbol * nb_re_pusch],
                            dmrs_symbol * frame_parms->ofdm_symbol_size,
                            (rel15_ul_ref->ul_dmrs_symb_pos >> meas_symbol) & 0x01,
                            &joint_pdu,
@@ -794,20 +795,18 @@ int nr_rx_pusch_group_tp(PHY_VARS_gNB *gNB,
       stop_meas(&gNB->pusch_extraction_stats);
     }
 
-  uint8_t shift_ch_ext = total_layers > 1 ? log2_approx(max_ch >> 11) : 0;
-
   //----------------------------------------------------------
   //--------------------- Channel Scaling --------------------
   //----------------------------------------------------------
-  nr_scale_channel(size_est, ul_ch_estimates_ext, meas_symbol, nb_re_pusch, total_layers, num_sp_streams, shift_ch_ext);
 
-  int avg[num_sp_streams * total_layers];
-  nr_channel_level(meas_symbol, size_est, (c16_t(*)[size_est])ul_ch_estimates_ext, num_sp_streams, total_layers, avg, nb_re_pusch);
+  int avg[total_layers][num_sp_streams];
+  for (int i = 0; i < total_layers; i++)
+    nr_channel_level(meas_symbol, size_est, ul_ch_estimates_ext[i], num_sp_streams, avg[i], nb_re_pusch);
 
   int avgs = 0;
   for (int nl = 0; nl < total_layers; nl++)
     for (int aarx = 0; aarx < num_sp_streams; aarx++)
-      avgs = cmax(avgs, avg[nl * num_sp_streams + aarx]);
+      avgs = cmax(avgs, avg[nl][aarx]);
 
   if (total_layers == 2 && rel15_ul_ref->qam_mod_order > 6)
     joint_pv->log2_maxh = (log2_approx(avgs) >> 1) - 3; // for MMSE
@@ -820,6 +819,7 @@ int nr_rx_pusch_group_tp(PHY_VARS_gNB *gNB,
     joint_pv->log2_maxh = 1;
   else if (joint_pv->log2_maxh > 14)
     joint_pv->log2_maxh = 14;
+
   stop_meas(&gNB->rx_pusch_init_stats);
 
   start_meas(&gNB->rx_pusch_symbol_processing_stats);
@@ -877,6 +877,7 @@ int nr_rx_pusch_group_tp(PHY_VARS_gNB *gNB,
       rdata->pusch_vars_group = pusch_vars_group;
       rdata->scrambling_sequences = scrambling_sequences_arr;
       rdata->layer_offsets = layer_offset;
+      rdata->layers_attenuation = total_layers ? log2_approx(max_ch >> 11) : 0;
 
       if (rel15_ul_ref->pdu_bit_map & PUSCH_PDU_BITMAP_PUSCH_PTRS) {
         nr_pusch_symbol_processing(rdata);
