@@ -72,7 +72,7 @@
 #define MAX_NUM_BWP 5
 #define MAX_NUM_CORESET 12
 /*!\brief Maximum number of random access process */
-#define NR_NB_RA_PROC_MAX 4
+#define NR_NB_RA_PROC_MAX 16 // set to 16 for multiple CFRA at the same time
 #define MAX_NUM_OF_SSB 64
 #define MAX_NUM_NR_PRACH_PREAMBLES 64
 #define NR_MAX_SIB_LENGTH 2976 // 3GPP TS 38.331 section 5.2.1
