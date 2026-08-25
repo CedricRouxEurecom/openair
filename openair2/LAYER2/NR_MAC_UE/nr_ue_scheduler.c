@@ -247,7 +247,7 @@ void update_mac_ul_timers(NR_UE_MAC_INST_t *mac)
 
 void remove_ul_config_last_item(fapi_nr_ul_config_request_pdu_t *pdu)
 {
-  pdu->privateNBpdus--;
+  (*pdu->privateNBpdus)--;
 }
 
 void release_ul_config(fapi_nr_ul_config_request_pdu_t *configPerSlot, bool clearIt)
