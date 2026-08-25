@@ -655,7 +655,6 @@ static void update_cellgroup_for_reestablishment(NR_UE_info_t *UE, NR_CellGroupC
     LOG_I(NR_MAC, "UE %04x: CellGroupConfig has %d bearers:\n", UE->rnti, addmod->list.count);
     for (int i = 0; i < addmod->list.count; ++i) {
       NR_RLC_BearerConfig_t *bearer = addmod->list.array[i];
-      int lcid = bearer->logicalChannelIdentity;
       int rb_type = bearer->servedRadioBearer->present;
       int rb_id = (rb_type == NR_RLC_BearerConfig__servedRadioBearer_PR_srb_Identity)
                       ? bearer->servedRadioBearer->choice.srb_Identity
@@ -665,7 +664,6 @@ static void update_cellgroup_for_reestablishment(NR_UE_info_t *UE, NR_CellGroupC
         --i;
         continue;
       }
-      LOG_I(NR_MAC, "UE %04x: Re-establishing RLC for LCID %d\n", UE->rnti, lcid);
       asn1cCallocOne(addmod->list.array[i]->reestablishRLC, NR_RLC_BearerConfig__reestablishRLC_true);
     }
   }
