@@ -30,6 +30,7 @@
 #include "PHY/defs_gNB.h"
 #include "PHY/defs_nr_common.h"
 #include "PHY/impl_defs_nr.h"
+#include "PHY/nr_phy_common/inc/nr_phy_meas.h"
 #include "SCHED_NR/phy_frame_config_nr.h"
 #include "SCHED_NR/sched_nr.h"
 #include "assertions.h"
@@ -95,10 +96,10 @@ static void tx_func(processingData_L1tx_t *info)
   // TODO check for analog_bf_vendor_ext set to 1 is a workaround while no beam API for beam selection is implemented
   if (tx_slot_type == NR_DOWNLINK_SLOT || tx_slot_type == NR_MIXED_SLOT || get_softmodem_params()->continuous_tx
       || IS_SOFTMODEM_RFSIM || cfg->analog_beamforming_ve.analog_bf_vendor_ext.value) {
-    start_meas_on_dl(&info->gNB->phy_proc_tx, tx_slot_type);
-    start_meas_on_dl(&info->gNB->gnb_tx_procedures_stats, tx_slot_type);
+    START_MEAS_FULL_SLOT(&info->gNB->phy_proc_tx, tx_slot_type, NR_DOWNLINK_SLOT);
+    START_MEAS_FULL_SLOT(&info->gNB->gnb_tx_procedures_stats, tx_slot_type, NR_DOWNLINK_SLOT);
     phy_procedures_gNB_TX(info->gNB, &sched_response.DL_req, &sched_response.TX_req, &sched_response.UL_dci_req, frame_tx,slot_tx);
-    stop_meas_on_dl(&info->gNB->gnb_tx_procedures_stats, tx_slot_type);
+    STOP_MEAS_FULL_SLOT(&info->gNB->gnb_tx_procedures_stats, tx_slot_type, NR_DOWNLINK_SLOT);
 
     PHY_VARS_gNB *gNB = info->gNB;
     processingData_RU_t syncMsgRU;
@@ -108,12 +109,12 @@ static void tx_func(processingData_L1tx_t *info)
     syncMsgRU.timestamp_tx = info->timestamp_tx;
     LOG_D(PHY, "gNB: %d.%d : calling RU TX function\n", syncMsgRU.frame_tx, syncMsgRU.slot_tx);
 
-    start_meas_on_dl(&info->gNB->ru_tx_func_stats, tx_slot_type);
+    START_MEAS_FULL_SLOT(&info->gNB->ru_tx_func_stats, tx_slot_type, NR_DOWNLINK_SLOT);
 
     ru_tx_func((void *)&syncMsgRU);
 
-    stop_meas_on_dl(&info->gNB->ru_tx_func_stats, tx_slot_type);
-    stop_meas_on_dl(&info->gNB->phy_proc_tx, tx_slot_type);
+    STOP_MEAS_FULL_SLOT(&info->gNB->ru_tx_func_stats, tx_slot_type, NR_DOWNLINK_SLOT);
+    STOP_MEAS_FULL_SLOT(&info->gNB->phy_proc_tx, tx_slot_type, NR_DOWNLINK_SLOT);
   }
 }
 
@@ -127,9 +128,9 @@ void *L1_rx_thread(void *arg)
        break;
      processingData_L1_t *info = (processingData_L1_t *)NotifiedFifoData(res);
      int slot_type = nr_slot_select(&gNB->gNB_config, info->frame_rx, info->slot_rx);
-     start_meas_on_ul(&gNB->l1_rx_proc, slot_type);
+     START_MEAS_FULL_SLOT(&gNB->l1_rx_proc, slot_type, NR_UPLINK_SLOT);
      rx_func(info);
-     stop_meas_on_ul(&gNB->l1_rx_proc, slot_type);
+     STOP_MEAS_FULL_SLOT(&gNB->l1_rx_proc, slot_type, NR_UPLINK_SLOT);
      delNotifiedFIFO_elt(res);
   }
   return NULL;
@@ -144,9 +145,9 @@ void *L1_tx_thread(void *arg) {
        break;
      processingData_L1tx_t *info = (processingData_L1tx_t *)NotifiedFifoData(res);
      int slot_type = nr_slot_select(&gNB->gNB_config, info->frame, info->slot);
-     start_meas_on_dl(&gNB->l1_tx_proc, slot_type);
+     START_MEAS_FULL_SLOT(&gNB->l1_tx_proc, slot_type, NR_DOWNLINK_SLOT);
      tx_func(info);
-     stop_meas_on_dl(&gNB->l1_tx_proc, slot_type);
+     STOP_MEAS_FULL_SLOT(&gNB->l1_tx_proc, slot_type, NR_DOWNLINK_SLOT);
      delNotifiedFIFO_elt(res);
   }
   return NULL;
@@ -199,9 +200,9 @@ static void rx_func(processingData_L1_t *info)
     phy_procedures_gNB_uespec_RX(gNB, frame_rx, slot_rx, &UL_INFO);
 
     // Call the scheduler
-    start_meas_on_ul(&gNB->ul_indication_stats, rx_slot_type);
+    START_MEAS_FULL_SLOT(&gNB->ul_indication_stats, rx_slot_type, NR_UPLINK_SLOT);
     gNB->if_inst->NR_UL_indication(&UL_INFO);
-    stop_meas_on_ul(&gNB->ul_indication_stats, rx_slot_type);
+    STOP_MEAS_FULL_SLOT(&gNB->ul_indication_stats, rx_slot_type, NR_UPLINK_SLOT);
 
     notifiedFIFO_elt_t *res = newNotifiedFIFO_elt(sizeof(processingData_L1_t), 0, &gNB->L1_rx_out, NULL);
     processingData_L1_t *syncMsg = NotifiedFifoData(res);

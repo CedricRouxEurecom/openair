@@ -17,6 +17,7 @@
 #include "PHY/NR_TRANSPORT/nr_transport_proto.h"
 #include "PHY/NR_TRANSPORT/nr_ulsch.h"
 #include "PHY/NR_TRANSPORT/nr_dlsch.h"
+#include "PHY/nr_phy_common/inc/nr_phy_meas.h"
 #include "SCHED_NR/sched_nr.h"
 #include "defs.h"
 #include "bits.h"
@@ -314,7 +315,7 @@ int nr_ulsch_decoding(PHY_VARS_gNB *phy_vars_gNB,
     if (!crcok)
       LOG_D(PHY, "ULSCH %d in error\n", ULSCH_id);
 
-    merge_meas_on_ul(&phy_vars_gNB->ts_ldpc_decode, &TB_parameters->ts_ldpc_decode, slot_type);
+    MERGE_MEAS_FULL_SLOT(&phy_vars_gNB->ts_ldpc_decode, &TB_parameters->ts_ldpc_decode, slot_type, NR_UPLINK_SLOT);
 
     harq_process->harq_to_be_cleared = false;
   }

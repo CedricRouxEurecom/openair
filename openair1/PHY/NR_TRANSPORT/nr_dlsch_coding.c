@@ -14,6 +14,7 @@
 #include "PHY/NR_TRANSPORT/nr_transport_proto.h"
 #include "PHY/NR_TRANSPORT/nr_transport_common_proto.h"
 #include "PHY/NR_TRANSPORT/nr_dlsch.h"
+#include "PHY/nr_phy_common/inc/nr_phy_meas.h"
 #include "SCHED_NR/sched_nr.h"
 #include "common/utils/LOG/log.h"
 #include "common/utils/nr/nr_common.h"
@@ -283,7 +284,7 @@ int nr_dlsch_encoding(PHY_VARS_gNB *gNB,
     nrLDPC_TB_encoding_parameters_t *TB_parameters = &TBs[i];
     for (int r = 0; r < TB_parameters->C; r++) {
       nrLDPC_segment_encoding_parameters_t *segment_parameters = &TB_parameters->segments[r];
-      merge_meas_on_dl(&gNB->dlsch_ldpc_encode_stats, &segment_parameters->ts_ldpc_encode, slot_type);
+      MERGE_MEAS_FULL_SLOT(&gNB->dlsch_ldpc_encode_stats, &segment_parameters->ts_ldpc_encode, slot_type, NR_DOWNLINK_SLOT);
     }
   }
   return 0;

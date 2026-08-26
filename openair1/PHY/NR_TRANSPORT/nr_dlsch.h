@@ -23,25 +23,4 @@ int nr_dlsch_encoding(PHY_VARS_gNB *gNB,
 
 void dump_pdsch_stats(FILE *fd,PHY_VARS_gNB *gNB);
 
-static inline void start_meas_on_dl(time_stats_t *ts, int slot_type)
-{
-  if(slot_type == NR_DOWNLINK_SLOT) {
-    start_meas(ts);
-  }
-}
-
-static inline void stop_meas_on_dl(time_stats_t *ts, int slot_type)
-{
-  if(slot_type == NR_DOWNLINK_SLOT) {
-    stop_meas(ts);
-  }
-}
-
-static inline void merge_meas_on_dl(time_stats_t *dst_ts, const time_stats_t *src_ts, int slot_type)
-{
-  if(slot_type == NR_DOWNLINK_SLOT) {
-    merge_meas(dst_ts, src_ts);
-  }
-}
-
 #endif
