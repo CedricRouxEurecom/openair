@@ -253,16 +253,6 @@ typedef enum {
   disable = 2,
 } pucch_GroupHopping_t;
 
-#define MAX_NB_CYCLIC_SHIFT                       (4)
-
-typedef enum {
-  pucch_format0_nr  = 1,
-  pucch_format1_nr  = 2,
-  pucch_format2_nr  = 3,
-  pucch_format3_nr  = 4,
-  pucch_format4_nr  = 5
-} pucch_format_nr_t;
-
 /***********************************************************************
 *
 * FUNCTIONALITY    :  Scheduling Request Configuration (SR)
