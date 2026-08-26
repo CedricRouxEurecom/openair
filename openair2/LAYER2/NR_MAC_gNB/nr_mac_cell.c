@@ -8,6 +8,7 @@
 nr_cell_sched_t *nr_mac_get_cell_by_phy_id(gNB_MAC_INST *mac, uint16_t phy_id)
 {
   AssertFatal(phy_id < NR_MAX_CELLS, "Invalid phy_id %d\n", phy_id);
+  AssertFatal(mac->cells[phy_id].common_channels.ServingCellConfigCommon != NULL, "Cell %d not configured!\n", phy_id);
   return &mac->cells[phy_id];
 }
 
@@ -22,5 +23,6 @@ nr_cell_sched_t *nr_mac_get_cell_by_cgi(gNB_MAC_INST *mac, plmn_id_t plmn, uint6
         && cell->plmn.mnc_digit_length == plmn.mnc_digit_length)
       return cell;
   }
+  AssertFatal(1 == 0, "Cell with cellid %lu and plmn %d %d doesn't exist!\n", nr_cellid, plmn.mcc, plmn.mnc);
   return NULL;
 }
