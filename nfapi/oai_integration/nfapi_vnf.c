@@ -1848,7 +1848,7 @@ void configure_nr_nfapi_vnf(const char *vnf_addr, uint16_t vnf_p5_port, uint16_t
   nfapi_vnf_pnf_info_t *pnf = (nfapi_vnf_pnf_info_t *)malloc(sizeof(nfapi_vnf_pnf_info_t));
   NFAPI_TRACE(NFAPI_TRACE_INFO, "MALLOC nfapi_vnf_pnf_info_t for pnf_list pnf:%p\n", pnf);
   memset(pnf, 0, sizeof(nfapi_vnf_pnf_info_t));
-  pnf->p5_idx = 1;
+  pnf->p5_idx = ((vnf_t *)get_config())->next_phy_id;
   pnf->connected = 1;
   // Add needed parameters
 

@@ -487,18 +487,13 @@ int pnf_start_request(nfapi_pnf_config_t *config, nfapi_pnf_start_request_t *req
 int pnf_nr_start_request(nfapi_pnf_config_t *config, nfapi_nr_pnf_start_request_t *req) {
   UNUSED(req)
   printf("Received NFAPI_PNF_START_REQUEST\n");
-  pnf_info *pnf = (pnf_info *)(config->user_data);
   // start all phys that have been configured
-  phy_info *phy = pnf->phys;
-
-  if(phy->id != 0) {
-    nfapi_nr_pnf_start_response_t resp;
-    memset(&resp, 0, sizeof(resp));
-    resp.header.message_id = NFAPI_NR_PHY_MSG_TYPE_PNF_START_RESPONSE;
-    resp.error_code = NFAPI_MSG_OK;
-    nfapi_nr_pnf_pnf_start_resp(config, &resp);
-    printf("[PNF] Sent NFAPI_PNF_START_RESP\n");
-  }
+  nfapi_nr_pnf_start_response_t resp;
+  memset(&resp, 0, sizeof(resp));
+  resp.header.message_id = NFAPI_NR_PHY_MSG_TYPE_PNF_START_RESPONSE;
+  resp.error_code = NFAPI_MSG_OK;
+  nfapi_nr_pnf_pnf_start_resp(config, &resp);
+  printf("[PNF] Sent NFAPI_PNF_START_RESP\n");
 
   return 0;
 }
