@@ -705,15 +705,20 @@ void ue_context_setup_request(const f1ap_ue_context_setup_req_t *req)
   NR_UE_info_t *UE = NULL;
   if (!ue_id_provided) {
     UE = create_new_UE(mac, req->gNB_CU_ue_id, cg_configinfo);
-    resp.gNB_DU_ue_id = UE->rnti;
-    resp.crnti = malloc_or_fail(sizeof(*resp.crnti));
-    *resp.crnti = UE->rnti;
   } else {
     DevAssert(is_SA);
     UE = find_nr_UE(&mac->UE_info, *req->gNB_DU_ue_id);
   }
+  /* create_new_UE() returns NULL if no RNTI is available or the RA list is full
+   * (e.g. many simultaneous handovers into this cell), find_nr_UE() if the CU
+   * sent an unknown gNB_DU_ue_id: check here, before any dereference below */
   AssertFatal(UE, "no UE found or could not be created, but UE Context Setup Failed not implemented\n");
   resp.gNB_DU_ue_id = UE->rnti;
+  if (!ue_id_provided) {
+    /* new UE: report the C-RNTI we allocated back to the CU */
+    resp.crnti = malloc_or_fail(sizeof(*resp.crnti));
+    *resp.crnti = UE->rnti;
+  }
 
   NR_CellGroupConfig_t *new_CellGroup = get_cellgroup_config(UE);
 
