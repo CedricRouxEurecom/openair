@@ -920,6 +920,16 @@ int phy_nr_slot_indication(nfapi_nr_slot_indication_scf_t *ind)
   ifi->NR_slot_indication(ind, &sched_response);
 
 #ifdef ENABLE_AERIAL
+    // The scheduler does not stamp the cell identity onto the requests it produces,
+    // so carry it over from the indication that triggered this slot. Once the MAC
+    // sets it in reset_sched_response(), these four assignments can simply go away
+    // and the senders keep reading it off the message.
+    const uint8_t PHY_id = ind->header.phy_id;
+    sched_response.DL_req.header.phy_id = PHY_id;
+    sched_response.UL_tti_req.header.phy_id = PHY_id;
+    sched_response.TX_req.header.phy_id = PHY_id;
+    sched_response.UL_dci_req.header.phy_id = PHY_id;
+
     bool send_slt_resp = false;
     if (sched_response.DL_req.dl_tti_request_body.nPDUs> 0) {
       oai_fapi_dl_tti_req(&sched_response.DL_req);
@@ -938,7 +948,7 @@ int phy_nr_slot_indication(nfapi_nr_slot_indication_scf_t *ind)
       send_slt_resp = true;
     }
     if (send_slt_resp) {
-      oai_fapi_send_end_request(ind->sfn, ind->slot);
+      oai_fapi_send_end_request(ind->sfn, ind->slot, PHY_id);
     }
 #else
   if (sched_response.DL_req.dl_tti_request_body.nPDUs > 0)
@@ -1417,7 +1427,20 @@ int nr_param_resp_cb(nfapi_vnf_config_t *config, int p5_idx, nfapi_nr_param_resp
   vnf_p7_info *p7_vnf = vnf->p7_vnfs;
   pnf_info *pnf = vnf->pnfs;
   phy_info *phy = pnf->phys;
-  nfapi_nr_config_request_scf_t *req = &RC.nrmac[0]->config[0]; // check
+#ifdef ENABLE_AERIAL
+  // Aerial has no P5 handshake, so no phy_id was ever allocated through
+  // nfapi_vnf_allocate_phy(): take the (0-based) cell id the message carries.
+  // On the native path phy->id already holds the id allocated in
+  // pnf_nr_param_resp_cb() and registered in config->phy_list; overwriting it
+  // here would break the nfapi_vnf_phy_info_list_find() lookup done by
+  // nfapi_nr_vnf_config_req().
+  phy->id = resp->header.phy_id;
+#endif
+  // NB: indexed by p5_idx, not resp->header.phy_id. Both are the 0-based cell id on
+  // Aerial, but the native nFAPI path is still 1-based (nfapi_vnf_allocate_phy() starts
+  // at 1), and config[] has NFAPI_CC_MAX == 1 entries. Switch to the message's phy_id
+  // once the native path is converted to 0-based indexing.
+  nfapi_nr_config_request_scf_t *req = &RC.nrmac[0]->config[p5_idx];
 #ifndef ENABLE_AERIAL
   struct sockaddr_in pnf_p7_sockaddr;
   phy->remote_port = resp->nfapi_config.p7_pnf_port.value;
@@ -1844,32 +1867,16 @@ void configure_nr_nfapi_vnf(const char *vnf_addr, uint16_t vnf_p5_port, uint16_t
   config->pack_func = &fapi_nr_p5_message_pack;
   config->send_p5_msg = &aerial_nr_send_p5_message;
   NFAPI_TRACE(NFAPI_TRACE_INFO, "[VNF] Created VNF NFAPI start thread %s\n", __FUNCTION__);
-  nfapi_vnf_pnf_info_t *pnf = (nfapi_vnf_pnf_info_t *)malloc(sizeof(nfapi_vnf_pnf_info_t));
-  NFAPI_TRACE(NFAPI_TRACE_INFO, "MALLOC nfapi_vnf_pnf_info_t for pnf_list pnf:%p\n", pnf);
-  memset(pnf, 0, sizeof(nfapi_vnf_pnf_info_t));
-  pnf->p5_idx = 1;
-  pnf->connected = 1;
-  // Add needed parameters
-
-  pnf_info *pnf_info = vnf->pnfs;
-
-  for (int i = 0; i < 1; ++i) {
-    phy_info phy;
-    memset(&phy, 0, sizeof(phy));
-    phy.index = 0;
-    NFAPI_TRACE(NFAPI_TRACE_INFO, "[VNF] (PHY:%d) phy_config_idx:%d\n", i, 0);
-    nfapi_vnf_allocate_phy(config, 1, &(phy.id));
-
-    for (int j = 0; j < 1; ++j) {
-      NFAPI_TRACE(NFAPI_TRACE_INFO, "[VNF] (PHY:%d) (RF%d) %d\n", i, j, 0);
-      phy.rfs[0] = 0;
-    }
-
-    pnf_info->phys[0] = phy;
+  // One pnf list entry per configured PHY so that aerial_nr_send_p5_message()
+  // can route CONFIG/START requests by phy_id.
+  uint8_t num_phys = RC.nrmac[0]->nvipc_params_s.num_phys;
+  for (int i = 0; i < num_phys; i++) {
+    nfapi_vnf_pnf_info_t *pnf = calloc(1, sizeof(*pnf));
+    pnf->p5_idx = i;
+    pnf->connected = 1;
+    nfapi_vnf_pnf_list_add(config, pnf);
+    NFAPI_TRACE(NFAPI_TRACE_INFO, "Registered aerial PNF entry for phy_id %d\n", i);
   }
-
-
-  nfapi_vnf_pnf_list_add(config, pnf);
 
   vnf_p7_info *p7_vnf = vnf->p7_vnfs;
 
