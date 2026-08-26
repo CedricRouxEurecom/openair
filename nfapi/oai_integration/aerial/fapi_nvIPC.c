@@ -88,7 +88,7 @@ static int ipc_handle_rx_msg(nv_ipc_msg_t *msg)
    vnf_p7_t *vnf_p7_config = (vnf_p7_t *)((vnf_info *)vnf_config->user_data)->p7_vnfs->config;
     switch (fapi_msg.message_id) {
       case NFAPI_NR_PHY_MSG_TYPE_PARAM_RESPONSE ... NFAPI_NR_PHY_MSG_TYPE_ERROR_INDICATION:
-        vnf_nr_handle_p4_p5_message(msg->msg_buf, msg->msg_len, 1, vnf_config);
+        vnf_nr_handle_p4_p5_message(msg->msg_buf, msg->msg_len, 0, vnf_config);
         break;
       // P7 Messages
       case NFAPI_NR_PHY_MSG_TYPE_RX_DATA_INDICATION: {
@@ -331,9 +331,10 @@ void *epoll_recv_task(void *arg)
   }
   // From here on out the thread is ready to receive data, simulate the reception
   // of a PARAM.response to get the VNF to send a CONFIG.request
+  // TODO receive the phy_id, maybe receive this PARAM.response dummy as an argument
   nfapi_nr_param_response_scf_t resp_msg = {.header.message_id = NFAPI_NR_PHY_MSG_TYPE_PARAM_RESPONSE};
   nfapi_vnf_config_t * vnf_config = get_config();
-  vnf_config->nr_param_resp(vnf_config, 1, &resp_msg);
+  vnf_config->nr_param_resp(vnf_config, resp_msg.header.phy_id, &resp_msg);
   while (((vnf_t *)vnf_config)->terminate == false) {
     LOG_D(NFAPI_VNF, "%s: epoll_wait fd_rx=%d ...\n", __func__, ipc_rx_event_fd);
 
@@ -414,7 +415,7 @@ int oai_fapi_ul_tti_req(nfapi_nr_ul_tti_request_t *ul_tti_req)
 {
   nfapi_vnf_p7_config_t *p7_config = get_p7_vnf_config();
 
-  ul_tti_req->header.phy_id = 1; // DJP HACK TODO FIXME - need to pass this around!!!!
+  ul_tti_req->header.phy_id = 0; // DJP HACK TODO FIXME - need to pass this around!!!!
   ul_tti_req->header.message_id = NFAPI_NR_PHY_MSG_TYPE_UL_TTI_REQUEST;
 
   bool retval = p7_config->send_p7_msg(get_p7_vnf(), &ul_tti_req->header);
@@ -434,7 +435,7 @@ int oai_fapi_ul_tti_req(nfapi_nr_ul_tti_request_t *ul_tti_req)
 int oai_fapi_ul_dci_req(nfapi_nr_ul_dci_request_t *ul_dci_req)
 {
   nfapi_vnf_p7_config_t *p7_config = get_p7_vnf_config();
-  ul_dci_req->header.phy_id = 1; // DJP HACK TODO FIXME - need to pass this around!!!!
+  ul_dci_req->header.phy_id = 0; // DJP HACK TODO FIXME - need to pass this around!!!!
   ul_dci_req->header.message_id = NFAPI_NR_PHY_MSG_TYPE_UL_DCI_REQUEST;
 
   bool retval = p7_config->send_p7_msg(get_p7_vnf(), &ul_dci_req->header);
@@ -449,7 +450,7 @@ int oai_fapi_ul_dci_req(nfapi_nr_ul_dci_request_t *ul_dci_req)
 int oai_fapi_tx_data_req(nfapi_nr_tx_data_request_t *tx_data_req)
 {
   nfapi_vnf_p7_config_t *p7_config = get_p7_vnf_config();
-  tx_data_req->header.phy_id = 1; // DJP HACK TODO FIXME - need to pass this around!!!!
+  tx_data_req->header.phy_id = 0; // DJP HACK TODO FIXME - need to pass this around!!!!
   tx_data_req->header.message_id = NFAPI_NR_PHY_MSG_TYPE_TX_DATA_REQUEST;
 
   bool retval = p7_config->send_p7_msg(get_p7_vnf(), &tx_data_req->header);
@@ -466,7 +467,7 @@ int oai_fapi_dl_tti_req(nfapi_nr_dl_tti_request_t *dl_config_req)
 {
   nfapi_vnf_p7_config_t *p7_config = get_p7_vnf_config();
   dl_config_req->header.message_id = NFAPI_NR_PHY_MSG_TYPE_DL_TTI_REQUEST;
-  dl_config_req->header.phy_id = 1; // DJP HACK TODO FIXME - need to pass this around!!!!
+  dl_config_req->header.phy_id = 0; // DJP HACK TODO FIXME - need to pass this around!!!!
 
   bool retval = p7_config->send_p7_msg(get_p7_vnf(), &dl_config_req->header);
   dl_config_req->dl_tti_request_body.nPDUs = 0;

@@ -2416,44 +2416,44 @@ int oai_nfapi_sr_indication(nfapi_sr_indication_t *ind) {
 //NR UPLINK INDICATION
 
 int oai_nfapi_nr_slot_indication(nfapi_nr_slot_indication_scf_t *ind) {
-  ind->header.phy_id = 1;
+  ind->header.phy_id = 0;
   ind->header.message_id = NFAPI_NR_PHY_MSG_TYPE_SLOT_INDICATION;
   return nfapi_pnf_p7_nr_slot_ind(p7_config_g, ind);
 }
 
 int oai_nfapi_nr_rx_data_indication(nfapi_nr_rx_data_indication_t *ind) {
-  ind->header.phy_id = 1; // HACK TODO FIXME - need to pass this around!!!!
+  ind->header.phy_id = 0; // HACK TODO FIXME - need to pass this around!!!!
   ind->header.message_id = NFAPI_NR_PHY_MSG_TYPE_RX_DATA_INDICATION;
   return nfapi_pnf_p7_nr_rx_data_ind(p7_config_g, ind);
 }
 
 int oai_nfapi_nr_crc_indication(nfapi_nr_crc_indication_t *ind) {
-  ind->header.phy_id = 1; // HACK TODO FIXME - need to pass this around!!!!
+  ind->header.phy_id = 0; // HACK TODO FIXME - need to pass this around!!!!
   ind->header.message_id = NFAPI_NR_PHY_MSG_TYPE_CRC_INDICATION;
   return nfapi_pnf_p7_nr_crc_ind(p7_config_g, ind);
 }
 
 int oai_nfapi_nr_srs_indication(nfapi_nr_srs_indication_t *ind) {
-  ind->header.phy_id = 1; // HACK TODO FIXME - need to pass this around!!!!
+  ind->header.phy_id = 0; // HACK TODO FIXME - need to pass this around!!!!
   ind->header.message_id = NFAPI_NR_PHY_MSG_TYPE_SRS_INDICATION;
   return nfapi_pnf_p7_nr_srs_ind(p7_config_g, ind);
 }
 
 int oai_nfapi_nr_srs_toa_vendor_ext_indication(nfapi_nr_srs_toa_vendor_ext_indication_t *ind)
 {
-  ind->header.phy_id = 1; // HACK TODO FIXME - need to pass this around!!!!
+  ind->header.phy_id = 0; // HACK TODO FIXME - need to pass this around!!!!
   ind->header.message_id = NFAPI_NR_PHY_MSG_TYPE_SRS_TOA_VENDOR_EXTENSION_INDICATION;
   return nfapi_pnf_p7_nr_srs_toa_vendor_ext_ind(p7_config_g, ind);
 }
 
 int oai_nfapi_nr_uci_indication(nfapi_nr_uci_indication_t *ind) {
-  ind->header.phy_id = 1; // HACK TODO FIXME - need to pass this around!!!!
+  ind->header.phy_id = 0; // HACK TODO FIXME - need to pass this around!!!!
   ind->header.message_id = NFAPI_NR_PHY_MSG_TYPE_UCI_INDICATION;
   return nfapi_pnf_p7_nr_uci_ind(p7_config_g, ind);
 }
 
 int oai_nfapi_nr_rach_indication(nfapi_nr_rach_indication_t *ind) {
-  ind->header.phy_id = 1; // HACK TODO FIXME - need to pass this around!!!!
+  ind->header.phy_id = 0; // HACK TODO FIXME - need to pass this around!!!!
   ind->header.message_id = NFAPI_NR_PHY_MSG_TYPE_RACH_INDICATION;
   return nfapi_pnf_p7_nr_rach_ind(p7_config_g, ind);
 }
