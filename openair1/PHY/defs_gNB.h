@@ -56,7 +56,7 @@ typedef struct {
 typedef struct {
   int dump_frame;
   int round_trials[8];
-  int total_bytes_tx;
+  uint64_t total_bytes_tx;
   int total_bytes_rx;
   int current_Qm;
   int current_RI;
