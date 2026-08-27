@@ -892,12 +892,6 @@ void kill_NR_RU_proc(int inst) {
   RU_t *ru = RC.ru[inst];
   RU_proc_t *proc = &ru->proc;
 
-  if (ru->if_south != REMOTE_IF4p5) {
-    abortTpool(ru->threadPool);
-    abortNotifiedFIFO(ru->respfeprx);
-    abortNotifiedFIFO(ru->respfeptx);
-  }
-
   /* Note: it seems pthread_FH and and FEP thread below both use
    * mutex_fep/cond_fep. Thus, we unlocked above for pthread_FH above and do
    * the same for FEP thread below again (using broadcast() to ensure both
@@ -906,7 +900,20 @@ void kill_NR_RU_proc(int inst) {
   proc->instance_cnt_fep[0] = 0;
   pthread_cond_broadcast(proc->cond_fep);
   pthread_mutex_unlock(proc->mutex_fep);
+
+  /* Join the RU thread BEFORE aborting the RU thread pool: ru_thread() is a
+   * producer of that pool (nr_fep_tp()/feptx push tasks on every UL/DL slot).
+   * abortTpool() frees the pool's queues, so a push from ru_thread() after
+   * that point races a destroyed mutex (EINVAL) and asserts. oai_exit is
+   * already set at this point and the RF reads are non-blocking, so the join
+   * returns promptly. */
   pthread_join(proc->pthread_FH, NULL);
+
+  if (ru->if_south != REMOTE_IF4p5) {
+    abortTpool(ru->threadPool);
+    abortNotifiedFIFO(ru->respfeprx);
+    abortNotifiedFIFO(ru->respfeptx);
+  }
 
   // everything should be stopped now, we can safely stop the RF device
   if (ru->stop_rf == NULL) {
