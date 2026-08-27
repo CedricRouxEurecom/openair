@@ -769,7 +769,6 @@ static void nr_rx_ra_sdu(gNB_MAC_INST *mac,
   bool cfra = ra->cfra;
   if (ra->cfra) {
     NR_UE_sched_ctrl_t *sched_ctrl = &UE->UE_sched_ctrl;
-    nr_mac_reset_ul_failure(sched_ctrl);
     reset_dl_harq_list(sched_ctrl);
     reset_ul_harq_list(sched_ctrl);
     // we configure the UE using dedicated search space: In SA (CFRA used for

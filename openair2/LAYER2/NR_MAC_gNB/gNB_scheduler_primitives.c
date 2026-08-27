@@ -3220,6 +3220,9 @@ bool transition_ra_connected_nr_ue(gNB_MAC_INST *nr_mac, NR_UE_info_t *UE)
   NR_UE_info_t *r = remove_UE_from_list(NR_NB_RA_PROC_MAX, UE_info->access_ue_list, UE->rnti);
   DevAssert(r == UE); /* sanity check: we should have removed the current UE ptr from list */
 
+  // The RA completed, so the UE's UL works. Clear any UL-failure state
+  nr_mac_reset_ul_failure(&UE->UE_sched_ctrl);
+
   free_and_zero(UE->ra);
 
   return add_connected_nr_ue(nr_mac, UE);
