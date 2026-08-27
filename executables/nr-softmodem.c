@@ -119,6 +119,9 @@ void exit_function(const char *file, const char *function, const int line, const
   if (RC.ru == NULL)
     exit(-1); // likely init not completed, prevent crash or hang, exit now...
 
+  // Signal worker threads (ru_thread, L1) to stop before tearing down the radio
+  oai_exit = 1;
+
   for (ru_id=0; ru_id<RC.nb_RU; ru_id++) {
     if (RC.ru[ru_id] == NULL) {
       continue;
@@ -126,6 +129,10 @@ void exit_function(const char *file, const char *function, const int line, const
     if (RC.ru[ru_id]->ifdevice.trx_stop_func) {
       RC.ru[ru_id]->ifdevice.trx_stop_func(&RC.ru[ru_id]->ifdevice);
       RC.ru[ru_id]->ifdevice.trx_stop_func = NULL;
+    }
+    if (RC.ru[ru_id]->rfdevice.trx_stop_func) {
+      RC.ru[ru_id]->rfdevice.trx_stop_func(&RC.ru[ru_id]->rfdevice);
+      RC.ru[ru_id]->rfdevice.trx_stop_func = NULL;
     }
     if (RC.ru[ru_id]->rfdevice.trx_end_func) {
       if (RC.ru[ru_id]->rfdevice.trx_get_stats_func) {
@@ -136,10 +143,6 @@ void exit_function(const char *file, const char *function, const int line, const
       RC.ru[ru_id]->rfdevice.trx_end_func = NULL;
     }
 
-    if (RC.ru[ru_id]->ifdevice.trx_stop_func) {
-      RC.ru[ru_id]->ifdevice.trx_stop_func(&RC.ru[ru_id]->ifdevice);
-      RC.ru[ru_id]->ifdevice.trx_stop_func = NULL;
-    }
     if (RC.ru[ru_id] && RC.ru[ru_id]->ifdevice.trx_end_func) {
       if (RC.ru[ru_id]->ifdevice.trx_get_stats_func) {
         RC.ru[ru_id]->ifdevice.trx_get_stats_func(&RC.ru[ru_id]->ifdevice);
@@ -149,8 +152,6 @@ void exit_function(const char *file, const char *function, const int line, const
       RC.ru[ru_id]->ifdevice.trx_end_func = NULL;
     }
   }
-
-  oai_exit = 1;
 
   if (assert) {
     abort();
