@@ -206,7 +206,10 @@ typedef struct {
  * @param nsamps_out output pointer to receive the number of samples until the next beam switch.
  * @return The beam map (uint64_t) valid for the given timestamp.
  */
-static std::vector<uint16_t> get_beams(beam_state_t *beam_state, openair0_timestamp_t timestamp, uint32_t nsamps, uint32_t *nsamps_out)
+static std::vector<uint16_t> get_beams(beam_state_t *beam_state,
+                                       openair0_timestamp_t timestamp,
+                                       uint32_t nsamps,
+                                       uint32_t *nsamps_out)
 {
   std::lock_guard<std::mutex> lock(beam_state->mutex);
   std::vector<uint16_t> current_beams = beam_state->beams;
@@ -1498,6 +1501,11 @@ extern "C" __attribute__((__visibility__("default"))) int device_init(openair0_d
   rfsimulator->tx_bw = openair0_cfg->tx_bw;
   rfsimulator->beam_ctrl = new rfsim_beam_ctrl_t;
   rfsimulator_readconfig(rfsimulator);
+  AssertFatal(!rfsimulator->beam_ctrl->enable_beams || rfsimulator->tx_num_channels == rfsimulator->rx_num_channels,
+              "rfsimulator beam simulation does not support uneven tx/rx antenna counts (tx_num_channels=%d, "
+              "rx_num_channels=%d): beam_ids/trx_set_beams() assign the same beam list to both\n",
+              rfsimulator->tx_num_channels,
+              rfsimulator->rx_num_channels);
   if (rfsimulator->prop_delay_ms > 0.0)
     rfsimulator->chan_offset = ceil(rfsimulator->sample_rate * rfsimulator->prop_delay_ms / 1000);
   if (rfsimulator->chan_offset != 0) {
@@ -1526,7 +1534,7 @@ extern "C" __attribute__((__visibility__("default"))) int device_init(openair0_d
   device->openair0_cfg = openair0_cfg;
   device->priv = rfsimulator;
   device->trx_write_init = rfsimulator_write_init;
-  device->trx_set_beams = rfsimulator_set_beams_vector;
+  device->trx_set_beams = rfsimulator->beam_ctrl->enable_beams ? rfsimulator_set_beams_vector : nullptr;
 
   for (int i = 0; i < MAX_FD_RFSIMU; i++)
     rfsimulator->buf[i].conn_sock = -1;
