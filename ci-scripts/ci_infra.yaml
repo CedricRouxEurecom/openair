@@ -141,6 +141,14 @@ oc-cn5g-20897-stonechat:
   Undeploy: "! scripts/oc-cn5g-undeploy.sh /opt/oai-cn5g-fed-develop-2025-jan oaicicd-core-for-fhi72"
   LogCollect: "! scripts/oc-cn5g-logcollect.sh /opt/oai-cn5g-fed-develop-2025-jan oaicicd-core-for-fhi72  %%log_dir%%"
 
+oc-cn5g-20899-stonechat:
+  Host: stonechat
+  NetworkScript: echo "inet 172.21.6.121"
+  RunIperf3Server: False
+  Deploy: "! scripts/oc-cn5g-deploy.sh /opt/oai-cn5g-fed-develop-20899 oaicicd-core-for-fhi72-fr2"
+  Undeploy: "! scripts/oc-cn5g-undeploy.sh /opt/oai-cn5g-fed-develop-20899 oaicicd-core-for-fhi72-fr2"
+  LogCollect: "! scripts/oc-cn5g-logcollect.sh /opt/oai-cn5g-fed-develop-20899 oaicicd-core-for-fhi72-fr2  %%log_dir%%"
+
 oc-cn5g-20899-always-on:
   Host: stonechat
   NetworkScript: echo "inet 172.21.6.12"
