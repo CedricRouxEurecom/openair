@@ -145,6 +145,7 @@ typedef struct {
 typedef struct buffer_s {
   int conn_sock;
   openair0_timestamp_t lastReceivedTS;
+  bool headerReceived; // true once a header has been parsed, even if its timestamp was 0
   bool headerMode;
   bool trashingPacket;
   samplesBlockHeader_t th;
@@ -292,6 +293,7 @@ static buffer_t *allocCirBuf(rfsimulator_state_t *bridge, int sock)
   bridge->nb_cnx++;
   ptr->conn_sock = sock;
   ptr->lastReceivedTS = 0;
+  ptr->headerReceived = false;
   ptr->headerMode = true;
   ptr->trashingPacket = true;
   ptr->transferPtr = (char *)&ptr->th;
@@ -875,7 +877,7 @@ static int startClient(openair0_device_t *device)
   do {
     have_to_wait = true;
     flushInput(t, 3, true);
-    if (b->lastReceivedTS)
+    if (b->headerReceived)
       have_to_wait = false;
   } while (have_to_wait);
   if (b->lastReceivedTS > 0)
@@ -1016,6 +1018,7 @@ static bool add_client(rfsimulator_state_t *t)
 static void process_recv_header(buffer_t *b, bool first_time)
 {
   b->headerMode = false; // We got the header
+  b->headerReceived = true;
   AssertFatal(b->th.nbAnt != 0, "Number of antennas not set\n");
   if (b->nbAnt != b->th.nbAnt) {
     LOG_A(HW, "RFsim: Number of antennas changed from %d to %d\n", b->nbAnt, b->th.nbAnt);
