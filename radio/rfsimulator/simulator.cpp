@@ -1005,7 +1005,7 @@ static bool add_client(rfsimulator_state_t *t)
     beam_ids[i] = 0;
   fullwrite(conn_sock, beam_ids, sizeof(beam_ids), t);
 
-  c16_t v[t->rx_num_channels];
+  c16_t v[t->tx_num_channels];
   memset(v, 0, sizeof(v));
   fullwrite(conn_sock, v, sizeof(v), t);
 
