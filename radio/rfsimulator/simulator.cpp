@@ -1379,7 +1379,7 @@ static int rfsimulator_read(openair0_device_t *device, openair0_timestamp_t *pti
   int nsamps_to_process = nsamps;
   while (nsamps_to_process > 0) {
     uint32_t nsamps_beam_map;
-    std::vector<uint16_t> rx_beams = get_beams(&t->beam_ctrl->tx, timestamp, nsamps_to_process, &nsamps_beam_map);
+    std::vector<uint16_t> rx_beams = get_beams(&t->beam_ctrl->rx, timestamp, nsamps_to_process, &nsamps_beam_map);
     if (t->beam_ctrl->enable_beams && (int)rx_beams.size() != nbAnt) {
       LOG_D(HW, "Number of beams does not match application request nbAnt %d, beams %lu\n", nbAnt, rx_beams.size());
     }
