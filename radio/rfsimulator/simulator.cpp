@@ -1028,6 +1028,7 @@ static void process_recv_header(buffer_t *b, bool first_time)
     b->lastReceivedTS = b->th.timestamp;
     b->trashingPacket = true;
   } else {
+    b->trashingPacket = false;
     if (b->lastReceivedTS < (int64_t)b->th.timestamp) {
       int nbAnt = b->th.nbAnt;
       if (!nbAnt)
