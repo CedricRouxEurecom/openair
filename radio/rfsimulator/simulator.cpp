@@ -81,8 +81,8 @@ typedef enum { SIMU_ROLE_SERVER = 1, SIMU_ROLE_CLIENT } simuRole;
   "        chanmod:   enable channel modelisation\n"                                               \
   "        saviq:     enable saving written iqs to a file\n"
 
-#define simOpt PARAMFLAG_NOFREE | PARAMFLAG_CMDLINE_NOPREFIXENABLED
-#define simBool PARAMFLAG_BOOL | PARAMFLAG_NOFREE | PARAMFLAG_CMDLINE_NOPREFIXENABLED
+#define simOpt PARAMFLAG_CMDLINE_NOPREFIXENABLED
+#define simBool PARAMFLAG_BOOL | PARAMFLAG_CMDLINE_NOPREFIXENABLED
 // clang-format off
 /*----------------------------------------------------------------------------------------------------------------------------------------------------*/
 /*                                            configuration parameters for the rfsimulator device */
@@ -349,6 +349,7 @@ static void removeCirBuf(rfsimulator_state_t *bridge, buffer_t *buf)
   // a lot of mem leaks
   // free(bridge->buf[sock].channel_model);
   clear_old_packets(buf->received_packets, INT64_MAX);
+  free(buf->packet_ptr);
   *buf = buffer_t{};
   buf->conn_sock = -1;
   bridge->nb_cnx--;
@@ -494,8 +495,7 @@ static void rfsimulator_readconfig(rfsimulator_state_t *rfsimulator)
 
   rfsimulator->ip = strdup(*(gpd(rfsimuParam, sizeofArray(rfsimuParams), RFSIMU_SERVER_ADDR)->strptr));
   rfsimulator->port = *(gpd(rfsimuParam, sizeofArray(rfsimuParams), RFSIMU_SERVER_PORT)->u16ptr);
-  char *saveF = strdup(*(gpd(rfsimuParam, sizeofArray(rfsimuParams), RFSIMU_IQFILE)->strptr));
-//char *modelname = strdup(*(gpd(rfsimuParam, sizeofArray(rfsimuParams), RFSIMU_MODELNAME)->strptr));
+  const char *saveF = *(gpd(rfsimuParam, sizeofArray(rfsimuParams), RFSIMU_IQFILE)->strptr);
   rfsimulator->chan_pathloss = *(gpd(rfsimuParam, sizeofArray(rfsimuParams), RFSIMU_PLOSS)->dblptr);
   rfsimulator->chan_forgetfact = *(gpd(rfsimuParam, sizeofArray(rfsimuParams), RFSIMU_FORGETFACT)->dblptr);
   rfsimulator->chan_offset = *(gpd(rfsimuParam, sizeofArray(rfsimuParams), RFSIMU_OFFSET)->u64ptr);
@@ -1449,7 +1449,8 @@ static void rfsimulator_end(openair0_device_t *device)
   clear_beam_queue(&s->beam_ctrl->rx, INT64_MAX);
   delete s->beam_ctrl;
   close(s->epollfd);
-  free(s);
+  free(s->ip);
+  delete s;
 }
 
 static void stopServer(openair0_device_t *device)
@@ -1487,7 +1488,7 @@ extern "C" __attribute__((__visibility__("default"))) int device_init(openair0_d
 {
   // to change the log level, use this on command line
   // --log_config.hw_log_level debug
-  rfsimulator_state_t *rfsimulator = static_cast<rfsimulator_state_t *>(calloc(sizeof(rfsimulator_state_t), 1));
+  rfsimulator_state_t *rfsimulator = new rfsimulator_state_t();
   // initialize channel simulation
   rfsimulator->ru_id = openair0_cfg->ru_id;
   rfsimulator->tx_num_channels = openair0_cfg->tx_num_channels;
