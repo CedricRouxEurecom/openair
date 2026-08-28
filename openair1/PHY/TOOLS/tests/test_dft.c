@@ -338,7 +338,6 @@ int main(void)
       math_dft(o16, out, n, 0, 1);
       double evm = 0;
       double sqnr = 0;
-      double samples = 0;
       double samples_out = 0;
       int nz = 0;
       for (int i = 0; i < n; i++) {
@@ -347,7 +346,6 @@ int main(void)
           cd_t error = {.r = (double)d16[i].r - out[i].r, .i = (double)d16[i].i - out[i].i};
           evm += sqrt(squaredMod(error)) / sqrt(squaredMod(out[i]));
           sqnr += squaredMod(error);
-          samples += sqrt(squaredMod(d16[i]));
           samples_out += squaredMod(out[i]);
           nz++;
         }

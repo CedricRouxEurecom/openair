@@ -1227,6 +1227,8 @@ static inline uint32_t nrLDPC_cnProcPc_BG1(t_nrLDPC_lut* p_lut, int8_t* cnProcBu
         // Only use valid CNs
         if (Mrem)
           pcResSum |= (pcRes&(0xFFFFFFFF>>(32-Mrem)));
+        else
+          pcResSum |= pcRes;
 
         // If PC failed we can stop here
         if (pcResSum > 0)
@@ -1295,6 +1297,8 @@ static inline uint32_t nrLDPC_cnProcPc_BG1(t_nrLDPC_lut* p_lut, int8_t* cnProcBu
         // Only use valid CNs
         if (Mrem)
           pcResSum |= (pcRes&(0xFFFFFFFF>>(32-Mrem)));
+        else
+          pcResSum |= pcRes;
 
         // If PC failed we can stop here
         if (pcResSum > 0)
@@ -1364,6 +1368,8 @@ static inline uint32_t nrLDPC_cnProcPc_BG1(t_nrLDPC_lut* p_lut, int8_t* cnProcBu
         // Only use valid CNs
         if (Mrem)
           pcResSum |= (pcRes&(0xFFFFFFFF>>(32-Mrem)));
+        else
+          pcResSum |= pcRes;
 
         // If PC failed we can stop here
         if (pcResSum > 0)
@@ -1432,6 +1438,8 @@ static inline uint32_t nrLDPC_cnProcPc_BG1(t_nrLDPC_lut* p_lut, int8_t* cnProcBu
         // Only use valid CNs
         if (Mrem)
           pcResSum |= (pcRes&(0xFFFFFFFF>>(32-Mrem)));
+        else
+          pcResSum |= pcRes;
 
         // If PC failed we can stop here
         if (pcResSum > 0)
@@ -1500,6 +1508,8 @@ static inline uint32_t nrLDPC_cnProcPc_BG1(t_nrLDPC_lut* p_lut, int8_t* cnProcBu
         // Only use valid CNs
         if (Mrem)
           pcResSum |= (pcRes&(0xFFFFFFFF>>(32-Mrem)));
+        else
+          pcResSum |= pcRes;
 
         // If PC failed we can stop here
         if (pcResSum > 0)
@@ -1568,6 +1578,8 @@ static inline uint32_t nrLDPC_cnProcPc_BG1(t_nrLDPC_lut* p_lut, int8_t* cnProcBu
         // Only use valid CNs
         if (Mrem)
           pcResSum |= (pcRes&(0xFFFFFFFF>>(32-Mrem)));
+        else
+          pcResSum |= pcRes;
 
         // If PC failed we can stop here
         if (pcResSum > 0)
@@ -1636,6 +1648,8 @@ static inline uint32_t nrLDPC_cnProcPc_BG1(t_nrLDPC_lut* p_lut, int8_t* cnProcBu
         // Only use valid CNs
         if (Mrem)
           pcResSum |= (pcRes&(0xFFFFFFFF>>(32-Mrem)));
+        else
+          pcResSum |= pcRes;
 
         // If PC failed we can stop here
         if (pcResSum > 0)
@@ -1704,6 +1718,8 @@ static inline uint32_t nrLDPC_cnProcPc_BG1(t_nrLDPC_lut* p_lut, int8_t* cnProcBu
         // Only use valid CNs
         if (Mrem)
           pcResSum |= (pcRes&(0xFFFFFFFF>>(32-Mrem)));
+        else
+          pcResSum |= pcRes;
 
         // If PC failed we can stop here
         if (pcResSum > 0)
@@ -1772,6 +1788,8 @@ static inline uint32_t nrLDPC_cnProcPc_BG1(t_nrLDPC_lut* p_lut, int8_t* cnProcBu
         // Only use valid CNs
         if (Mrem)
           pcResSum |= (pcRes&(0xFFFFFFFF>>(32-Mrem)));
+        else
+          pcResSum |= pcRes;
 
         // If PC failed we can stop here
         if (pcResSum > 0)
@@ -1868,6 +1886,8 @@ static inline uint32_t nrLDPC_cnProcPc_BG2(t_nrLDPC_lut* p_lut, int8_t* cnProcBu
         // Only use valid CNs
         if (Mrem)
           pcResSum |= (pcRes&(0xFFFFFFFF>>(32-Mrem)));
+        else
+          pcResSum |= pcRes;
 
         // If PC failed we can stop here
         if (pcResSum > 0)
@@ -1936,6 +1956,8 @@ static inline uint32_t nrLDPC_cnProcPc_BG2(t_nrLDPC_lut* p_lut, int8_t* cnProcBu
         // Only use valid CNs
         if (Mrem)
           pcResSum |= (pcRes&(0xFFFFFFFF>>(32-Mrem)));
+        else
+          pcResSum |= pcRes;
 
         // If PC failed we can stop here
         if (pcResSum > 0)
@@ -2004,6 +2026,8 @@ static inline uint32_t nrLDPC_cnProcPc_BG2(t_nrLDPC_lut* p_lut, int8_t* cnProcBu
         // Only use valid CNs
         if (Mrem)
           pcResSum |= (pcRes&(0xFFFFFFFF>>(32-Mrem)));
+        else
+          pcResSum |= pcRes;
 
         // If PC failed we can stop here
         if (pcResSum > 0)
@@ -2072,6 +2096,8 @@ static inline uint32_t nrLDPC_cnProcPc_BG2(t_nrLDPC_lut* p_lut, int8_t* cnProcBu
         // Only use valid CNs
         if (Mrem)
           pcResSum |= (pcRes&(0xFFFFFFFF>>(32-Mrem)));
+        else
+          pcResSum |= pcRes;
 
         // If PC failed we can stop here
         if (pcResSum > 0)
@@ -2140,6 +2166,8 @@ static inline uint32_t nrLDPC_cnProcPc_BG2(t_nrLDPC_lut* p_lut, int8_t* cnProcBu
         // Only use valid CNs
         if (Mrem)
           pcResSum |= (pcRes&(0xFFFFFFFF>>(32-Mrem)));
+        else
+          pcResSum |= pcRes;
 
         // If PC failed we can stop here
         if (pcResSum > 0)
@@ -2208,6 +2236,8 @@ static inline uint32_t nrLDPC_cnProcPc_BG2(t_nrLDPC_lut* p_lut, int8_t* cnProcBu
         // Only use valid CNs
         if (Mrem)
           pcResSum |= (pcRes&(0xFFFFFFFF>>(32-Mrem)));
+        else
+          pcResSum |= pcRes;
 
         // If PC failed we can stop here
         if (pcResSum > 0)
@@ -2220,6 +2250,5 @@ static inline uint32_t nrLDPC_cnProcPc_BG2(t_nrLDPC_lut* p_lut, int8_t* cnProcBu
 }
 
 #endif
-
 
 

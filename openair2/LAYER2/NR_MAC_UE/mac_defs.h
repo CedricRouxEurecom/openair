@@ -166,6 +166,14 @@ typedef enum {
 #undef UE_STATE
 } NR_UE_L2_STATE_t;
 
+#define MAX_NB_CYCLIC_SHIFT (4)
+typedef enum {
+  pucch_format0_nr  = 1,
+  pucch_format1_nr  = 2,
+  pucch_format2_nr  = 3,
+  pucch_format3_nr  = 4,
+  pucch_format4_nr  = 5
+} pucch_format_nr_t;
 typedef struct {
   pucch_format_nr_t format;
   uint8_t startingSymbolIndex;
@@ -380,6 +388,8 @@ typedef struct {
   bool active;
   bool ack_received;
   uint8_t  pucch_resource_indicator;
+  /* use pucch-ResourceCommon table (TS 38.213 9.2.1) for this HARQ-ACK */
+  bool pucch_resource_common;
   frame_t ul_frame;
   int ul_slot;
   uint8_t ack;
