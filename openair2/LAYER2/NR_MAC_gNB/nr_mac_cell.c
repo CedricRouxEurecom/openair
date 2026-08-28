@@ -23,6 +23,5 @@ nr_cell_sched_t *nr_mac_get_cell_by_cgi(gNB_MAC_INST *mac, plmn_id_t plmn, uint6
         && cell->plmn.mnc_digit_length == plmn.mnc_digit_length)
       return cell;
   }
-  AssertFatal(1 == 0, "Cell with cellid %lu and plmn %d %d doesn't exist!\n", nr_cellid, plmn.mcc, plmn.mnc);
   return NULL;
 }

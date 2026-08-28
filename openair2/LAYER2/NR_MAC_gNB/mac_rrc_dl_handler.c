@@ -824,6 +824,7 @@ void ue_context_modification_request(const f1ap_ue_context_mod_req_t *req)
   nr_cell_sched_t *cell = (req->plmn && req->nr_cellid)
                               ? nr_mac_get_cell_by_cgi(mac, *req->plmn, *req->nr_cellid)
                               : UE->pcell;
+  AssertFatal(cell != NULL, "cell not found (no UE pcell or NRCGI provided)\n");
 
   NR_CellGroupConfig_t *new_CellGroup = get_cellgroup_config(UE);
 
