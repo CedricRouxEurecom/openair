@@ -1914,6 +1914,8 @@ void configure_nfapi_vnf(char *vnf_addr, int vnf_p5_port, char *pnf_ip_addr, int
   vnf->p7_vnfs[0].local_port = vnf_p7_port;
   vnf->p7_vnfs[0].mac = malloc(sizeof(mac_t));
   config = nfapi_vnf_config_create();
+  // LTE proxy skips phy_id == 0 upon receiving a PNF_START_REQUEST, start from 1
+  ((vnf_t *)config)->next_phy_id = 1;
   config->malloc = malloc;
   config->free = free;
   config->vnf_p5_port = vnf_p5_port;
