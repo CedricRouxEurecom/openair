@@ -519,6 +519,20 @@ int nr_rx_pusch_group_tp(PHY_VARS_gNB *gNB,
         frame_parms->first_carrier_offset);
   LOG_D(PHY, "pusch %d.%d : ul_dmrs_symb_pos %x\n", frame, slot, rel15_ul_ref->ul_dmrs_symb_pos);
 
+  // Softscope dumps the whole slot grid; clear unused symbols so they do not keep
+  // stale constellation points. scopeData is set only when nrscope is loaded (--doscope).
+  if (gNB->scopeData) {
+    const int rxdataF_comp_symbol_size = ceil_mod(frame_parms->N_RB_UL * NR_NB_SC_PER_RB, 16);
+    const int rxdataF_comp_slot_size = rxdataF_comp_symbol_size * frame_parms->symbols_per_slot;
+    for (int ue = 0; ue < group_size; ue++) {
+      NR_gNB_PUSCH *pusch_vars = pusch_vars_group[ue];
+      const int n_buf = rel15_ul_group[ue]->nrOfLayers;
+      for (int i = 0; i < n_buf; i++)
+        memset(pusch_vars->rxdataF_comp[i], 0, sizeof(*pusch_vars->rxdataF_comp[i]) * rxdataF_comp_slot_size);
+      memset(pusch_vars->ul_valid_re_per_slot, 0, sizeof(*pusch_vars->ul_valid_re_per_slot) * frame_parms->symbols_per_slot);
+    }
+  }
+
   // Memories to store data for data recording
   int buffer_length_slot = rel15_ul_ref->rb_size * NR_NB_SC_PER_RB * NR_SYMBOLS_PER_SLOT;
   // data recording application supports only a single layer.
