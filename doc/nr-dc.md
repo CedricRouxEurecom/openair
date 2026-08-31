@@ -64,18 +64,25 @@ or anywhere but outside of other blocks).
 ```
 nrdc = {
   combinations = (
-    { mcg = 77, scg = 261 },
-    { mcg = 78, scg = 257 }
+    { mcg = 1, scg = 2 },
+    { mcg = 3, scg = 4 }
   )
 }
 ```
 
-This will enable two different possible band combinations, n77+n261 and
-n78+n257.
+This will enable two different possible band combinations. The first
+combination is for an MCG with nr_cellid==1 and an SCG with nr_cellid==2.
+The second combination is for an MCG with nr_cellid==3 and an SCG with
+nr_cellid==3.
 
-If you run one DU in band n77 and another one in band n261, then a UE that
-supports this NR-DC combination will be put in NR-DC mode. The same applies
-if you run one DU in band n78 and another one in band n257.
+If you run one DU in band n77 (this DU being the MCG with nr_cellid==1) and
+another one in band n261 (this DU being the SCG with nr_cellid==2), then a UE
+that supports this NR-DC combination will be put in NR-DC mode. The same
+applies if you run one DU in band n78 (with nr_cellid==3) and another one in
+band n257 (with nr_cellid==4).
+
+The configuration file uses nr_cellid, not band, to select an MCG/SCG
+combination.
 
 ### Testing
 
