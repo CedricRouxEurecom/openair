@@ -802,7 +802,7 @@ void ue_context_modification_request(const f1ap_ue_context_mod_req_t *req)
   /* special handling for NR-DC UEs */
   NR_SCHED_LOCK(&mac->sched_lock);
   NR_UE_info_t *UE = find_nr_UE(&RC.nrmac[0]->UE_info, req->gNB_DU_ue_id);
-  if (UE->nrdc_mode) {
+  if (UE && UE->nrdc_mode) {
     NR_SCHED_UNLOCK(&mac->sched_lock);
     return nrdc_ue_context_modification_request(req);
   }
