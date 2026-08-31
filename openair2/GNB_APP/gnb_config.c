@@ -1287,12 +1287,12 @@ static void config_nrdc(configmodule_interface_t *cfg, nrdc_configuration_t *nrd
   nrdc_config->combinations = calloc_or_fail(nrdc_config->combination_count, sizeof(nrdc_combination_t));
   for (int i = 0; i < nrdc_combination_list.numelt; i++) {
     const paramdef_t *combination = nrdc_combination_list.paramarray[i];
-    int mcg = *gpd(combination, sizeofArray(nrdc_combination), CONFIG_NRDC_MCG)->iptr;
-    int scg = *gpd(combination, sizeofArray(nrdc_combination), CONFIG_NRDC_SCG)->iptr;
-    LOG_I(NR_RRC, "NR-DC: combination %d: mcg band %d scg band %d\n", i, mcg, scg);
+    uint64_t mcg_cell_id = *gpd(combination, sizeofArray(nrdc_combination), CONFIG_NRDC_MCG)->u64ptr;
+    uint64_t scg_cell_id = *gpd(combination, sizeofArray(nrdc_combination), CONFIG_NRDC_SCG)->u64ptr;
+    LOG_I(NR_RRC, "NR-DC: combination %d: mcg cell ID %"PRIu64" scg cell ID %"PRIu64"\n", i, mcg_cell_id, scg_cell_id);
 
-    nrdc_config->combinations[i].mcg_band = mcg;
-    nrdc_config->combinations[i].scg_band = scg;
+    nrdc_config->combinations[i].mcg_cell_id = mcg_cell_id;
+    nrdc_config->combinations[i].scg_cell_id = scg_cell_id;
   }
 }
 

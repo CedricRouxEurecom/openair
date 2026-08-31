@@ -364,19 +364,23 @@ void rrc_gnb_nrdc_start(gNB_RRC_INST *rrc, gNB_RRC_UE_t *ue)
     return;
   }
 
-  int mcg_band = -1;
-  int scg_band = -1;
+  bool combination_found = false;
+  int mcg_band = 0;
+  int scg_band = 0;
+
   for (int i = 0; i < rrc->nrdc_config.combination_count; i++) {
-    nr_rrc_cell_container_t *mcg_cell = get_cell_by_band(&rrc->cells, rrc->nrdc_config.combinations[i].mcg_band);
-    nr_rrc_cell_container_t *scg_cell = get_cell_by_band(&rrc->cells, rrc->nrdc_config.combinations[i].scg_band);
+    nr_rrc_cell_container_t *mcg_cell = get_cell_by_cell_id(&rrc->cells, rrc->nrdc_config.combinations[i].mcg_cell_id);
+    nr_rrc_cell_container_t *scg_cell = get_cell_by_cell_id(&rrc->cells, rrc->nrdc_config.combinations[i].scg_cell_id);
     /* MCG cell must be the one used by the UE */
     if (mcg_cell == ue_pcell && scg_cell != NULL) {
-      mcg_band = rrc->nrdc_config.combinations[i].mcg_band;
-      scg_band = rrc->nrdc_config.combinations[i].scg_band;
+      mcg_band = mcg_cell->info.mode == NR_MODE_TDD ? mcg_cell->info.tdd.dlul.band : mcg_cell->info.fdd.dl.band;
+      scg_band = scg_cell->info.mode == NR_MODE_TDD ? scg_cell->info.tdd.dlul.band : scg_cell->info.fdd.dl.band;
+      combination_found = true;
+      break;
     }
   }
 
-  if (mcg_band == -1) {
+  if (!combination_found) {
     LOG_W(NR_RRC, "NR-DC: UE %d: no NR-DC combination found, NR-DC will not be activated\n", ue->rrc_ue_id);
     return;
   }

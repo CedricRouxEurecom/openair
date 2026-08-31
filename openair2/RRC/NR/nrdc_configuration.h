@@ -5,9 +5,11 @@
 #ifndef _NRDC_CONFIGURATION_H_
 #define _NRDC_CONFIGURATION_H_
 
+#include <stdint.h>
+
 typedef struct {
-  int mcg_band;
-  int scg_band;
+  uint64_t mcg_cell_id;
+  uint64_t scg_cell_id;
 } nrdc_combination_t;
 
 typedef struct {
