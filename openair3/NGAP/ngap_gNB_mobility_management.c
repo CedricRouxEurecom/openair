@@ -15,6 +15,8 @@
 #include "ngap_gNB_encoder.h"
 #include "ngap_gNB_itti_messaging.h"
 #include "NR_HandoverPreparationInformation.h"
+#include "NR_RRCReconfiguration.h"
+#include "NR_CellGroupConfig.h"
 #include "conversions.h"
 
 /** @brief UE Mobility Management: encode Handover Required
@@ -324,9 +326,63 @@ int decode_ng_handover_request(ngap_handover_request_t *out, const NGAP_NGAP_PDU
   if (LOG_DEBUGFLAG(DEBUG_ASN1))
     xer_fprint(stdout, &asn_DEF_NR_HandoverPreparationInformation, hoPrepInformation);
 
-  // Decode UE capabilities and store
   NR_HandoverPreparationInformation_IEs_t *hpi =
       hoPrepInformation->criticalExtensions.choice.c1->choice.handoverPreparationInformation;
+
+  /* extract newUE-Identity, if present
+   * this is in handoverPreparationInformation->sourceConfig->rrcReconfiguration->criticalExtensions
+   * ->rrcReconfiguration->nonCriticalExtension->masterCellGroup->CellGroupConfig->spCellConfig
+   * ->reconfigurationWithSync->newUE-Identity
+   */
+  uint16_t new_ue_identity = NOT_A_RNTI;
+
+  if (hpi->sourceConfig) {
+    NR_RRCReconfiguration_t *rrc_reconf = NULL;
+    NR_RRCReconfiguration_IEs_t *reconf_ies = NULL;
+    OCTET_STRING_t *mcg = NULL;
+    asn_dec_rval_t dec_ret = uper_decode_complete(NULL,
+                                                  &asn_DEF_NR_RRCReconfiguration,
+                                                  (void **)&rrc_reconf,
+                                                  hpi->sourceConfig->rrcReconfiguration.buf,
+                                                  hpi->sourceConfig->rrcReconfiguration.size);
+    bool decoding_success = dec_ret.code == RC_OK && dec_ret.consumed > 0;
+    if (decoding_success
+        && rrc_reconf->criticalExtensions.present == NR_RRCReconfiguration__criticalExtensions_PR_rrcReconfiguration
+        && rrc_reconf->criticalExtensions.choice.rrcReconfiguration != NULL)
+      reconf_ies = rrc_reconf->criticalExtensions.choice.rrcReconfiguration;
+    if (reconf_ies && reconf_ies->nonCriticalExtension && reconf_ies->nonCriticalExtension->masterCellGroup)
+      mcg = reconf_ies->nonCriticalExtension->masterCellGroup;
+    NR_CellGroupConfig_t *cgc = NULL;
+    decoding_success = false;
+    if (mcg) {
+      dec_ret = uper_decode_complete(NULL,
+                                     &asn_DEF_NR_CellGroupConfig,
+                                     (void **)&cgc,
+                                     mcg->buf,
+                                     mcg->size);
+      decoding_success = dec_ret.code == RC_OK && dec_ret.consumed > 0;
+    }
+    if (decoding_success && cgc && cgc->spCellConfig && cgc->spCellConfig->reconfigurationWithSync)
+      new_ue_identity = cgc->spCellConfig->reconfigurationWithSync->newUE_Identity;
+    if (rrc_reconf)
+      ASN_STRUCT_FREE(asn_DEF_NR_RRCReconfiguration, rrc_reconf);
+    if (cgc)
+      ASN_STRUCT_FREE(asn_DEF_NR_CellGroupConfig, cgc);
+  }
+
+  out->new_ue_identity = new_ue_identity;
+
+  /* extract sourcePhysCellId and targetCellShortMAC-I in as-Context, if present */
+  out->has_cell_id_and_short_mac_I = false;
+
+  if (hpi->as_Context && hpi->as_Context->reestablishmentInfo) {
+    out->has_cell_id_and_short_mac_I = true;
+    out->source_physical_cell_id = hpi->as_Context->reestablishmentInfo->sourcePhysCellId;
+    BIT_STRING_t *smi = &hpi->as_Context->reestablishmentInfo->targetCellShortMAC_I;
+    out->short_mac_I = (smi->buf[0] << 8) | smi->buf[1];
+  }
+
+  // Decode UE capabilities and store
   const NR_UE_CapabilityRAT_ContainerList_t *ue_CapabilityRAT_ContainerList = &hpi->ue_CapabilityRAT_List;
   out->ue_cap.len = uper_encode_to_new_buffer(&asn_DEF_NR_UE_CapabilityRAT_ContainerList,
                                               NULL,

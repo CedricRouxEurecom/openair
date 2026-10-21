@@ -1523,12 +1523,19 @@ byte_array_t get_HandoverPreparationInformation(nr_rrc_reconfig_param_t *params)
   OCTET_STRING_fromBuf(&sourceConfig->rrcReconfiguration, (const char *)msg.buf, msg.len);
   free_byte_array(msg);
 
+  /* pass as_context if given */
+  hpi->as_Context = params->as_context;
+
   if (LOG_DEBUGFLAG(DEBUG_ASN1))
     xer_fprint(stdout, &asn_DEF_NR_HandoverPreparationInformation, (void **)&hoPrepInfo);
 
   /* encode */
-  buffer.len = uper_encode_to_new_buffer(&asn_DEF_NR_HandoverPreparationInformation, NULL, (void *)&hoPrepInfo, (void *)&buffer.buf);
-  AssertFatal(buffer.len > 0, "ASN1 message encoding failed (%ld)!\n", buffer.len);
+  ssize_t len = uper_encode_to_new_buffer(&asn_DEF_NR_HandoverPreparationInformation, NULL, (void *)&hoPrepInfo, (void *)&buffer.buf);
+  AssertFatal(len > 0, "ASN1 message encoding failed (%ld)!\n", buffer.len);
+  buffer.len = (size_t)len;
+
+  /* free */
+  hpi->as_Context = NULL;      /* don't free as_Context, it's coming from *params */
   ASN_STRUCT_FREE_CONTENTS_ONLY(asn_DEF_NR_HandoverPreparationInformation, &hoPrepInfo);
   return buffer;
 }

@@ -1271,6 +1271,7 @@ static void config_pdcp(configmodule_interface_t *cfg, nr_pdcp_configuration_t *
   int ret = config_get(cfg, pdcp_global_params, sizeofArray(pdcp_global_params), CONFIG_STRING_NR_PDCP);
   AssertFatal(ret >= 0, "problem reading NR PDCP configuration from configuration file\n");
   pdcp_config->max_count = *gpd(pdcp_global_params, sizeofArray(pdcp_global_params), CONFIG_NR_PDCP_MAX_COUNT)->uptr;
+  pdcp_config->max_count_ho_method = config_get_processedint(cfg, &pdcp_global_params[CONFIG_NR_PDCP_MAX_COUNT_HO_METHOD_IDX]);
 
   /* DRB configuration */
   paramdef_t pdcp_params[] = NR_PDCP_DRB_GLOBALPARAMS_DESC;

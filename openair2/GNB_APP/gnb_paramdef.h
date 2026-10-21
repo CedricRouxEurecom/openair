@@ -1047,12 +1047,22 @@ typedef enum {
 
 #define CONFIG_STRING_NR_PDCP "pdcp"
 
+#define CONFIG_NR_PDCP_MAX_COUNT_HO_METHOD_IDX 1
+
 #define CONFIG_NR_PDCP_MAX_COUNT "max_count"
+#define CONFIG_NR_PDCP_MAX_COUNT_HO_METHOD "max_count_ho_method"
 
 #define NR_PDCP_GLOBALPARAMS_DESC { \
     { CONFIG_NR_PDCP_MAX_COUNT, "max_count", 0, .uptr=NULL, \
       .defuintval=(uint32_t)3 * (uint32_t)1024 * (uint32_t)1024 * (uint32_t)1024, \
-      TYPE_UINT32, 0 } \
+      TYPE_UINT32, 0 }, \
+    { .optname = CONFIG_NR_PDCP_MAX_COUNT_HO_METHOD, \
+      .defstrval = "intra-cell", \
+      .helpstr = "HO method for PDCP max count", .paramflags = 0, .strptr = NULL, .type = TYPE_STRING, .numelt = 0, \
+      .chkPptr = &(checkedparam_t){ .s3a = { .f3a = config_checkstr_assign_integer, \
+          .okstrval = { VALUES_NR_PDCP_MAX_COUNT_HO_METHOD_STR }, \
+          .setintval = { VALUES_NR_PDCP_MAX_COUNT_HO_METHOD }, \
+          .num_okstrval = SIZEOF_NR_PDCP_MAX_COUNT_HO_METHOD }}} \
 }
 
 /*----------------------------------------------------------------------*/

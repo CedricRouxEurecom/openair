@@ -38,6 +38,7 @@
 #include "NR_SIB3.h"
 #include "NR_SIB4.h"
 #include "NR_PagingUE-Identity.h"
+#include "NR_AS-Context.h"
 #include "ds/seq_arr.h"
 #include "ds/byte_array.h"
 #include "openair2/LAYER2/nr_pdcp/nr_pdcp_configuration.h"
@@ -59,6 +60,8 @@ typedef struct {
   bool masterKeyUpdate;
   int nextHopChainingCount;
   byte_array_t ue_cap;
+  NR_AS_Context_t *as_context;
+  NR_ReconfigurationWithSync_t *reconfig_with_sync;
 } nr_rrc_reconfig_param_t;
 
 /*

@@ -41,9 +41,23 @@
 
 #define SIZEOF_NR_PDCP_DISCARD_TIMER INT_LIST_SIZE(VALUES_NR_PDCP_DISCARD_TIMER)
 
+typedef enum {
+  NR_PDCP_WRAP_AROUND_INTRA_CELL_HANDOVER,          /* as per 33.501 6.9.4.5 */
+  NR_PDCP_WRAP_AROUND_N2_HANDOVER                   /* another method, not standard compliant */
+} max_count_ho_method_t;
+
+#define VALUES_NR_PDCP_MAX_COUNT_HO_METHOD \
+    NR_PDCP_WRAP_AROUND_INTRA_CELL_HANDOVER, NR_PDCP_WRAP_AROUND_N2_HANDOVER
+
+#define VALUES_NR_PDCP_MAX_COUNT_HO_METHOD_STR \
+    "intra-cell", "n2"
+
+#define SIZEOF_NR_PDCP_MAX_COUNT_HO_METHOD INT_LIST_SIZE(VALUES_NR_PDCP_MAX_COUNT_HO_METHOD)
+
 /* configuration of NR PDCP, coming from configuration file */
 typedef struct {
-  uint32_t max_count;       /* value after which PDCP signals RRC (or E1AP) about COUNT being close to exhaustion */
+  uint32_t max_count;       /* value after which PDCP signals RRC about COUNT being close to exhaustion */
+  max_count_ho_method_t max_count_ho_method;
   struct {
     int sn_size;
     int t_reordering;

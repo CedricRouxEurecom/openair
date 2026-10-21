@@ -3626,9 +3626,11 @@ void rrc_gNB_process_e1_bearer_context_modif_resp(const e1ap_bearer_modif_resp_t
 
   // Trigger UL RAN Status Transfer if PDCP status is available
   if (n_drb_mod) {
-    LOG_I(NR_RRC, "UE %d: received PDU Status Info - send UL RAN Status Transfer\n", resp->gNB_cu_cp_ue_id);
-    if (ue->ho_context && ue->ho_context->source)
+    /* don't do anything is case of handover to self for PDCP COUNT reset */
+    if (ue->ho_context && ue->ho_context->source && !ue->ho_context->do_full_config) {
+      LOG_I(NR_RRC, "UE %d: received PDU Status Info - send UL RAN Status Transfer\n", resp->gNB_cu_cp_ue_id);
       ue->ho_context->source->ho_status_transfer(rrc, ue, n_drb_mod, drb_ids, pdcp_status);
+    }
   }
 
   if (n_f1_drbs > 0 || n_f1_drbs_rel > 0) {
@@ -3673,6 +3675,34 @@ static void trigger_intra_cell_handover_for_pdcp_count_wrap(gNB_RRC_INST *rrc, g
   nr_rrc_trigger_f1_ho_for_pdcp_count_wrap(rrc, ue);
 }
 
+static void trigger_n2_handover_for_pdcp_count_wrap(gNB_RRC_INST *rrc, gNB_RRC_UE_t *UE)
+{
+  /* PDCP COUNT reset is wanted, trigger N2 handover */
+
+  nr_rrc_du_container_t *du = get_du_for_ue(rrc, UE->rrc_ue_id);
+  if (du == NULL) {
+    LOG_E(NR_RRC, "N2 HO trigger failed for UE %d: Unknown DU\n", UE->rrc_ue_id);
+    return;
+  }
+
+  nr_rrc_cell_container_t *pcell = rrc_get_pcell_for_ue(rrc, UE);
+  if (pcell == NULL) {
+    LOG_E(NR_RRC, "N2 HO trigger failed for UE %d: Unknown cell\n", UE->rrc_ue_id);
+    return;
+  }
+
+  LOG_I(RRC, "UE %d: PDPC COUNT reset needed, trigger n2 handover\n", UE->rrc_ue_id);
+
+  nr_neighbour_cell_t neighbourConfig = {
+      .gNB_ID = du->gNB_DU_id,
+      .nrcell_id = pcell->info.cell_id,
+      .physicalCellId = pcell->info.pci,
+      .plmn = pcell->info.plmn,
+      .subcarrierSpacing = pcell->info.mode == NR_MODE_TDD ? pcell->info.tdd.dlul.scs : pcell->info.fdd.dl.scs,
+  };
+  nr_rrc_trigger_n2_ho_for_pdcp_count_reset(rrc, UE, &neighbourConfig);
+}
+
 /* Check if at least one of the PDU session has a DRB to modify
  * for "PDCP COUNT wrap around" reason.
  * If yes, trigger handover (N2 or intra-cell, depending on
@@ -3695,7 +3725,10 @@ static void rrc_gNB_check_pdcp_count_wrap_for_drb(gNB_RRC_INST *rrc,
   if (!pdcp_count_wrap_wanted)
     return;
 
-  trigger_intra_cell_handover_for_pdcp_count_wrap(rrc, UE);
+  if (rrc->pdcp_config.max_count_ho_method == NR_PDCP_WRAP_AROUND_INTRA_CELL_HANDOVER)
+    trigger_intra_cell_handover_for_pdcp_count_wrap(rrc, UE);
+  else
+    trigger_n2_handover_for_pdcp_count_wrap(rrc, UE);
 }
 
 /** @brief E1AP Bearer Context Modification Required processing on CU-CP */
@@ -3744,7 +3777,10 @@ static void srb_max_count_reached(gNB_RRC_INST *rrc, nr_rrc_pdcp_srb_max_count_r
   }
   gNB_RRC_UE_t *UE = &ue_context_p->ue_context;
 
-  trigger_intra_cell_handover_for_pdcp_count_wrap(rrc, UE);
+  if (rrc->pdcp_config.max_count_ho_method == NR_PDCP_WRAP_AROUND_INTRA_CELL_HANDOVER)
+    trigger_intra_cell_handover_for_pdcp_count_wrap(rrc, UE);
+  else
+    trigger_n2_handover_for_pdcp_count_wrap(rrc, UE);
 }
 
 static void print_meas_result_quantity(FILE *f, const NR_MeasQuantityResults_t *mqr)

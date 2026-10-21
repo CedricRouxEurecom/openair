@@ -487,7 +487,176 @@ void nr_HO_F1_trigger_telnet(gNB_RRC_INST *rrc, uint32_t rrc_ue_id)
   nr_rrc_trigger_f1_ho(rrc, ue, source_cell, target_cell);
 }
 
-static byte_array_t rrc_gNB_encode_HandoverCommand(gNB_RRC_UE_t *UE, gNB_RRC_INST *rrc)
+uint16_t rrc_gNB_compute_short_mac_i(gNB_RRC_UE_t *ue, int physical_cell_id, uint64_t cell_identity, uint16_t rnti)
+{
+  uint8_t krrcint[16];
+  nr_derive_key(RRC_INT_ALG, ue->integrity_algorithm, ue->kgnb, krrcint);
+
+  uint8_t var_input[8] = {0};
+  /* Write 62 bits MSB-first into var_input */
+  uint64_t hi = ((uint64_t)physical_cell_id << 54) | (cell_identity << 18) | ((uint64_t)rnti << 2);
+  var_input[0] = (hi >> 56) & 0xff;
+  var_input[1] = (hi >> 48) & 0xff;
+  var_input[2] = (hi >> 40) & 0xff;
+  var_input[3] = (hi >> 32) & 0xff;
+  var_input[4] = (hi >> 24) & 0xff;
+  var_input[5] = (hi >> 16) & 0xff;
+  var_input[6] = (hi >> 8) & 0xff;
+  var_input[7] = hi & 0xff;
+
+  stream_security_context_t *ctx = stream_integrity_init(ue->integrity_algorithm, krrcint);
+  AssertFatal(ctx != NULL, "Failed to initialise integrity context for integrityProtAlgorithm %d\n", ue->integrity_algorithm);
+  nas_stream_cipher_t cipher = {
+      .context = ctx,
+      .count = 0xffffffff,
+      .bearer = 0x1f,
+      .direction = SECU_DIRECTION_DOWNLINK,
+      .message = var_input,
+      .blength = 64, /* 8 bytes: 62 bits content + 2 zero padding bits */
+  };
+  uint8_t mac[4];
+  stream_compute_integrity((eia_alg_id_e)ue->integrity_algorithm, &cipher, mac);
+  stream_integrity_free(ue->integrity_algorithm, ctx);
+  uint16_t short_mac_i = ((uint16_t)mac[2] << 8) | mac[3];
+
+  return short_mac_i;
+}
+
+/* todo: delete this function, when i started this, f1 ho did not call
+ * rrc_gNB_generate_HandoverPreparationInformation()
+ * the following function was the true rrc_gNB_generate_HandoverPreparationInformation()
+ * but then they decided to call rrc_gNB_generate_HandoverPreparationInformation()
+ * for f1 ho as well
+ * at the same time, i poked in there
+ * and now it's all messed up
+ * in case n2 ho is seen as important for pdcp count reset
+ * the main problem will be to mix both
+ * (or maybe we keep rrc_gNB_generate_HandoverPreparationInformation_for_n2_ho())
+ * bah, let's see, all this is "note to self" and will be forgotten soon
+ */
+/** @brief Generate the HandoverPreparationInformation to be carried
+ * in the RRC Container (9.3.1.29 of 3GPP TS 38.413) of the Source
+ * NG-RAN Node to Target NG-RAN Node Transparent Container IE */
+static byte_array_t rrc_gNB_generate_HandoverPreparationInformation_for_n2_ho(gNB_RRC_INST *rrc, gNB_RRC_UE_t *ue, bool ho_for_pdcp_count_reset)
+{
+  nr_rrc_reconfig_param_t params = get_RRCReconfiguration_params(rrc, ue, 0, false);
+  params.ue_cap = ue->ue_cap_buffer;
+  params.fullConfig = ho_for_pdcp_count_reset;
+  params.as_context = NULL;
+
+  nr_rrc_cell_container_t *pcell = rrc_get_pcell_for_ue(rrc, ue);
+  DevAssert(pcell);
+
+  /* include as-Context for PDCP COUNT reset, with ShortMAC-I, so that when
+   * receiving Handover Request we know it's a special handover for PDCP
+   * COUNT reset (no other way was found, if it's bad then todo: change the logic)
+   */
+#if 0
+  NR_AS_Context_t as_context;
+  NR_ReestablishmentInfo_t reest;
+  if (ho_for_pdcp_count_reset) {
+    uint16_t short_mac_i = rrc_gNB_compute_short_mac_i(ue, pcell->info.pci, pcell->info.cell_id, ue->rnti);
+#if 0
+    reest = (NR_ReestablishmentInfo_t) {
+      .sourcePhysCellId = pcell->info.pci,
+      .targetCellShortMAC_I = {
+        .buf = (uint8_t [2]) { (short_mac_i >> 8) & 255, short_mac_i & 255 },
+        .size = 2,
+        .bits_unused = 0
+      }
+    };
+    as_context = (NR_AS_Context_t) {
+      .reestablishmentInfo = &reest
+    };
+#else
+    as_context = (NR_AS_Context_t) {
+      .reestablishmentInfo = &(NR_ReestablishmentInfo_t) {
+        .sourcePhysCellId = pcell->info.pci,
+        .targetCellShortMAC_I = {
+          .buf = (uint8_t [2]) { (short_mac_i >> 8) & 255, short_mac_i & 255 },
+          .size = 2,
+          .bits_unused = 0
+        }
+      }
+    };
+#endif
+    params.as_context = &as_context;
+  }
+#endif
+  uint16_t short_mac_i = ho_for_pdcp_count_reset ?
+                         rrc_gNB_compute_short_mac_i(ue, pcell->info.pci, pcell->info.cell_id, ue->rnti)
+                         : 0;
+  NR_AS_Context_t as_context = (NR_AS_Context_t) {
+    .reestablishmentInfo = &(NR_ReestablishmentInfo_t) {
+      .sourcePhysCellId = pcell->info.pci,
+      .targetCellShortMAC_I = {
+        .buf = (uint8_t [2]) { (short_mac_i >> 8) & 255, short_mac_i & 255 },
+        .size = 2,
+        .bits_unused = 0
+      }
+    }
+  };
+  if (ho_for_pdcp_count_reset)
+    params.as_context = &as_context;
+
+  /* 38.331 11.2.3 requires ReconfigurationWithSync */
+  /* Pass the RNTI of the UE for handover for PDCP COUNT reset, this will be
+   * used to compute ShortMAC-I when we receive Handover Request.
+   * For other types of handover, pass dummy value.
+   * For spCellConfigCommon, pass bare minimum for the time being. To be
+   * refined if needed.
+   */
+  uint16_t newUE_identity = ho_for_pdcp_count_reset ? ue->rnti : NOT_A_RNTI;
+  NR_ReconfigurationWithSync_t reconfiguration_with_sync = {
+    .newUE_Identity = newUE_identity,
+    .t304 = NR_ReconfigurationWithSync__t304_ms2000,         /* not used, can be anything, so we choose the same value as found in get_reconfiguration_with_sync() */
+    .spCellConfigCommon = &(NR_ServingCellConfigCommon_t) {
+      .dmrs_TypeA_Position = pcell->mib->dmrs_TypeA_Position,
+      .ss_PBCH_BlockPower = pcell->sib1->servingCellConfigCommon->ss_PBCH_BlockPower,
+    }
+  };
+
+  /* take cgc, decode it, put reconf with sync in it, recode */
+  NR_CellGroupConfig_t *cgc = NULL;
+  asn_dec_rval_t dec_rval = uper_decode_complete(NULL, &asn_DEF_NR_CellGroupConfig, (void **)&cgc, params.cgc->buf, params.cgc->len);
+  DevAssert(dec_rval.code == RC_OK && dec_rval.consumed > 0);
+
+  DevAssert(cgc->spCellConfig);
+  void *old_reconfiguration_with_sync = cgc->spCellConfig->reconfigurationWithSync;
+  cgc->spCellConfig->reconfigurationWithSync = &reconfiguration_with_sync;
+
+  byte_array_t cgc_buf = { 0 };
+  ssize_t len = uper_encode_to_new_buffer(&asn_DEF_NR_CellGroupConfig, NULL, cgc, (void **)&cgc_buf.buf);
+  DevAssert(len > 0);
+  cgc_buf.len = (size_t)len;
+
+  void *old_cgc = params.cgc;
+  params.cgc = &cgc_buf;
+
+  /* get ho preparation information */
+  byte_array_t hoPrepInfo = get_HandoverPreparationInformation(&params);
+
+  /* free modified cgc */
+  cgc->spCellConfig->reconfigurationWithSync = old_reconfiguration_with_sync;
+  ASN_STRUCT_FREE(asn_DEF_NR_CellGroupConfig, cgc);
+  free(cgc_buf.buf);
+
+  params.cgc = old_cgc;
+  params.as_context = NULL;
+
+  free_RRCReconfiguration_params(params);
+
+  if (hoPrepInfo.len < 0) {
+    LOG_E(NR_RRC, "HandoverPreparationInformation generation failed for UE %d\n", ue->rrc_ue_id);
+    return hoPrepInfo;
+  }
+
+  LOG_D(NR_RRC, "HO LOG: Handover Preparation for UE %lu Encoded (%zd bytes)\n", ue->amf_ue_ngap_id, hoPrepInfo.len);
+
+  return hoPrepInfo;
+}
+
+static byte_array_t rrc_gNB_encode_HandoverCommand(gNB_RRC_UE_t *UE, gNB_RRC_INST *rrc, bool do_full_config)
 {
   DevAssert(UE->ho_context);
   DevAssert(UE->ho_context->target);
@@ -516,6 +685,10 @@ static byte_array_t rrc_gNB_encode_HandoverCommand(gNB_RRC_UE_t *UE, gNB_RRC_INS
   params.security_config = sec;
   params.masterKeyUpdate = true;
   params.nextHopChainingCount = UE->nh_ncc;
+
+  if (do_full_config)
+    params.fullConfig = true;
+
   byte_array_t out = get_HandoverCommandMessage(&params);
 
   // Free remove lists in UE->measConfig
@@ -603,7 +776,7 @@ static void nr_rrc_n2_ho_acknowledge(gNB_RRC_INST *rrc, gNB_RRC_UE_t *UE)
     return;
   }
 
-  byte_array_t hoCommand = rrc_gNB_encode_HandoverCommand(UE, rrc);
+  byte_array_t hoCommand = rrc_gNB_encode_HandoverCommand(UE, rrc, UE->ho_context->do_full_config);
   if (hoCommand.len < 0) {
     LOG_E(NR_RRC, "ASN1 message encoding failed: failed to generate Handover Command Message\n");
     ngap_handover_failure_t fail = {.amf_ue_ngap_id = UE->amf_ue_ngap_id,
@@ -671,7 +844,11 @@ void nr_rrc_trigger_n2_ho_target(gNB_RRC_INST *rrc, gNB_RRC_UE_t *ue)
 /** @brief Trigger N2 handover on source gNB:
  *         1) Prepare RRC Container with HandoverPreparationInformation message
  *         2) send NGAP Handover Required message */
-void nr_rrc_trigger_n2_ho(gNB_RRC_INST *rrc, gNB_RRC_UE_t *ue, const nr_neighbour_cell_t *neighbour_config)
+static void _nr_rrc_trigger_n2_ho(gNB_RRC_INST *rrc,
+                                  gNB_RRC_UE_t *ue,
+                                  const nr_neighbour_cell_t *neighbour_config,
+                                  bool do_full_config,
+                                  bool ho_for_pdcp_count_reset)
 {
   bool has_active_pdu_session = false;
   FOR_EACH_SEQ_ARR (rrc_pdu_session_param_t *, pduSession, &ue->pduSessions) {
@@ -688,9 +865,8 @@ void nr_rrc_trigger_n2_ho(gNB_RRC_INST *rrc, gNB_RRC_UE_t *ue, const nr_neighbou
     return;
   }
 
-  byte_array_t hoPrepInfo = rrc_gNB_generate_HandoverPreparationInformation(rrc, ue);
-  if (hoPrepInfo.len < 0) {
-    free_byte_array(hoPrepInfo);
+  byte_array_t hoPrepInfo = rrc_gNB_generate_HandoverPreparationInformation_for_n2_ho(rrc, ue, ho_for_pdcp_count_reset);
+  if (hoPrepInfo.buf == NULL) {
     LOG_E(NR_RRC, "Failed to trigger N2 handover on source gNB for UE %x\n", ue->rrc_ue_id);
     return;
   }
@@ -698,10 +874,12 @@ void nr_rrc_trigger_n2_ho(gNB_RRC_INST *rrc, gNB_RRC_UE_t *ue, const nr_neighbou
   // allocate context for source
   if (ue->ho_context != NULL) {
     LOG_E(NR_RRC, "Ongoing handover for UE %d, cannot trigger new\n", ue->rrc_ue_id);
+    free_byte_array(hoPrepInfo);
     return;
   }
 
   ue->ho_context = alloc_ho_ctx(HO_CTX_SOURCE);
+  ue->ho_context->do_full_config = do_full_config;
   nr_rrc_cell_container_t *source_cell = rrc_get_pcell_for_ue(rrc, ue);
   if (source_cell == NULL) {
     LOG_E(NR_RRC, "No source cell found for UE %d\n", ue->rrc_ue_id);
@@ -713,8 +891,19 @@ void nr_rrc_trigger_n2_ho(gNB_RRC_INST *rrc, gNB_RRC_UE_t *ue, const nr_neighbou
   ue->ho_context->source->ho_status_transfer = rrc_gNB_send_NGAP_ul_ran_status_transfer;
   ue->ho_context->source->ho_cancel = nr_rrc_n2_ho_cancel;
 
+//LOG_E(RRC, "%s:%d: hoPrepInfo %p %ld\n", __FILE__, __LINE__, hoPrepInfo.buf, hoPrepInfo.len);
   rrc_gNB_send_NGAP_HANDOVER_REQUIRED(rrc, ue, neighbour_config, hoPrepInfo);
   free_byte_array(hoPrepInfo);
+}
+
+void nr_rrc_trigger_n2_ho(gNB_RRC_INST *rrc, gNB_RRC_UE_t *ue, const nr_neighbour_cell_t *neighbour_config)
+{
+  return _nr_rrc_trigger_n2_ho(rrc, ue, neighbour_config, false /* no full config */, false /* no pdcp count reset */);
+}
+
+void nr_rrc_trigger_n2_ho_for_pdcp_count_reset(gNB_RRC_INST *rrc, gNB_RRC_UE_t *ue, const nr_neighbour_cell_t *neighbour_config)
+{
+  return _nr_rrc_trigger_n2_ho(rrc, ue, neighbour_config, true /* full config */, true /* pdcp count reset */);
 }
 
 void nr_HO_N2_trigger_telnet(gNB_RRC_INST *rrc, uint32_t neighbour_pci, uint32_t rrc_ue_id)

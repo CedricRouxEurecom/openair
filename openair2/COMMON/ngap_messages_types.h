@@ -590,6 +590,12 @@ typedef struct {
   uint64_t nr_cell_id;
   byte_array_t ue_ho_prep_info;
   byte_array_t ue_cap;
+  uint16_t new_ue_identity;                // newUE_Identity (NOT_A_RNTI if not provided)
+  bool has_cell_id_and_short_mac_I;        // true if sourcePhysCellId and targetCellShortMAC-I are provided
+  int source_physical_cell_id;             // sourcePhysCellId from as-Context in HandoverPreparationInformation
+                                           // valid if has_cell_id_and_short_mac_I is true
+  uint16_t short_mac_I;                    // targetCellShortMAC-I from as-Context in HandoverPreparationInformation
+                                           // valid if has_cell_id_and_short_mac_I is true
   // Mobility Restriction List
   ngap_mobility_restriction_t *mobility_restriction;
   // GUAMI

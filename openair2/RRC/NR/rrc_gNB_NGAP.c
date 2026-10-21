@@ -1440,6 +1440,8 @@ void rrc_gNB_send_NGAP_HANDOVER_FAILURE(gNB_RRC_INST *rrc, ngap_handover_failure
 /** @brief Process NG Handover Request message (8.4.2.2 3GPP TS 38.413) */
 int rrc_gNB_process_Handover_Request(gNB_RRC_INST *rrc, ngap_handover_request_t *msg)
 {
+  bool handover_to_self = false;
+
   rrc_gNB_ue_context_t *existing_ue_context = rrc_gNB_get_ue_context_by_amf_ue_ngap_id(rrc, msg->amf_ue_ngap_id);
   if (existing_ue_context != NULL) {
     gNB_RRC_UE_t *ue = &existing_ue_context->ue_context;
@@ -1462,6 +1464,7 @@ int rrc_gNB_process_Handover_Request(gNB_RRC_INST *rrc, ngap_handover_request_t 
       rrc_gNB_send_NGAP_HANDOVER_FAILURE(rrc, &fail);
       return -1;
     }
+    handover_to_self = true;
     LOG_I(NR_RRC, "N2 HO to self (AMF UE NGAP ID %ld): creating target context for UE %u\n", msg->amf_ue_ngap_id, ue->rrc_ue_id);
   }
 
@@ -1489,6 +1492,22 @@ int rrc_gNB_process_Handover_Request(gNB_RRC_INST *rrc, ngap_handover_request_t 
     };
     rrc_gNB_send_NGAP_HANDOVER_FAILURE(rrc, &fail);
     return -1;
+  }
+
+  /* Core network may send a new AMF-UE-NGAP-ID but we can still be in
+   * "handover to self" mode for PDCP COUNT reset. To find such cases,
+   * since we set newUE-Identity and as-Context, we can get those values
+   * from the message and check if that correspond to an UE that is in N2
+   * source preparation
+   */
+  if (msg->new_ue_identity != NOT_A_RNTI && msg->has_cell_id_and_short_mac_I) {
+    rrc_gNB_ue_context_t *existing_ue_context = rrc_gNB_get_ue_context_by_rnti(rrc, du->assoc_id, msg->new_ue_identity);
+    if (existing_ue_context && cell->info.pci == msg->source_physical_cell_id) {
+uint16_t rrc_gNB_compute_short_mac_i(gNB_RRC_UE_t *ue, int physical_cell_id, uint64_t cell_identity, uint16_t rnti);
+      uint16_t computed_short_mac_i = rrc_gNB_compute_short_mac_i(&existing_ue_context->ue_context, cell->info.pci, cell->info.cell_id, msg->new_ue_identity);
+      if (computed_short_mac_i == msg->short_mac_I)
+        handover_to_self = true;
+    }
   }
 
   // Validate PLMN from GUAMI against allowed PLMN list
@@ -1524,6 +1543,13 @@ int rrc_gNB_process_Handover_Request(gNB_RRC_INST *rrc, ngap_handover_request_t 
   UE->ho_context = alloc_ho_ctx(HO_CTX_TARGET);
   UE->ho_context->target->cell = cell;
   UE->ho_context->target->ho_trigger = nr_rrc_trigger_n2_ho_target;
+  /* handover to self is used to reset PDCP COUNT,
+   * which requires a full config for DRB AM, so let's force a full config
+   * (if handover to self is used for something else in the future,
+   * refine this logic)
+   */
+  if (handover_to_self)
+    UE->ho_context->do_full_config = true;
 
   // Store IDs in UE context
   UE->amf_ue_ngap_id = msg->amf_ue_ngap_id;
